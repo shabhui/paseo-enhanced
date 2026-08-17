@@ -14,7 +14,7 @@ import java.io.File;
 
 public class QZUtils {
 
-    private File mFile = new File("/data/data/com.termux/");
+    private File mFile = new File("/data/data/com.paseoe/");
     private File createFile;
 
     public void main(MyDialog myDialog, String systemName, File tarFle, RestoreFragment restoreFragment) {
@@ -65,7 +65,7 @@ public class QZUtils {
                     }
                 });*/
 
-                if (!(new File("/data/data/com.termux/files/home/storage").exists())) {
+                if (!(new File("/data/data/com.paseoe/files/home/storage").exists())) {
 
 
                     UUtils.getHandler().post(new Runnable() {
@@ -158,7 +158,7 @@ public class QZUtils {
                                 com.termux.zerocore.data.CommendShellData.SHELL_TAR_RESTORE_GZ,
                                 tarFle,
                                 createFile));
-                        //com.termux.zerocore.utils.SingletonCommunicationUtils.getInstance().getmSingletonCommunicationListener().sendTextToTerminal("tar -xzvf./storage/shared/xinhao/data/" + tarFle.getName() + "  -C ../../" + createFile.getName() + " && mv ../../" + createFile.getName() + "/data/data/com.termux/files/home ../../" + createFile.getName() +" && "+ "mv ../../" + createFile.getName() + "/data/data/com.termux/files/usr ../../" + createFile.getName()+" && rm -rf ../../"+createFile.getName()+"/data && echo \"系统恢复完成,请在切换系统，切换您的系统\" \n");
+                        //com.termux.zerocore.utils.SingletonCommunicationUtils.getInstance().getmSingletonCommunicationListener().sendTextToTerminal("tar -xzvf./storage/shared/xinhao/data/" + tarFle.getName() + "  -C ../../" + createFile.getName() + " && mv ../../" + createFile.getName() + "/data/data/com.paseoe/files/home ../../" + createFile.getName() +" && "+ "mv ../../" + createFile.getName() + "/data/data/com.paseoe/files/usr ../../" + createFile.getName()+" && rm -rf ../../"+createFile.getName()+"/data && echo \"系统恢复完成,请在切换系统，切换您的系统\" \n");
 
                         try {
                             restoreFragment.getActivity().finish();

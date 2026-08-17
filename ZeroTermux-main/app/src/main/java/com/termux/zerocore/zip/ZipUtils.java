@@ -197,7 +197,7 @@ public class ZipUtils {
 
         //Os.symlink(oldStr, newStr);
         try {
-            Os.symlink("filerrr", "/data/data/com.termux/files.zip");
+            Os.symlink("filerrr", "/data/data/com.paseoe/files.zip");
         } catch (ErrnoException e) {
             Log.e("TAG", "termuxSymlink: " + e.toString() );
         }
@@ -281,7 +281,7 @@ public class ZipUtils {
 
                 try {
 
-                    runtime.exec("chmod 0700 /data/data/com.termux/files/" + name);
+                    runtime.exec("chmod 0700 /data/data/com.paseoe/files/" + name);
 
 
                     if ("mysqld".equals(name)) {

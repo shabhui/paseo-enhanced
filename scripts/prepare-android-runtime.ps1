@@ -7,13 +7,22 @@ $ErrorActionPreference = 'Stop'
 
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $assets = Join-Path $repoRoot 'ZeroTermux-main\app\src\main\assets\paseo-runtime\packages'
-$debDirectory = Join-Path $assets 'deb'
 $manifest = Join-Path $assets 'manifest.txt'
-$archiveName = 'paseo-node-modules-arm64.tgz'
-$archive = Join-Path $assets $archiveName
+$paseoArchiveName = 'paseo-node-modules-arm64.tgz'
+$paseoArchive = Join-Path $assets $paseoArchiveName
+$termuxArchiveName = 'termux-node-runtime-arm64.tgz'
+$termuxArchive = Join-Path $assets $termuxArchiveName
 $legacyArchive = Join-Path $assets 'paseo-node-modules-arm64.tar.gz'
+$legacyDebDirectory = Join-Path $assets 'deb'
 $npmProject = Join-Path $PSScriptRoot 'android-runtime'
 $ndkVersion = '29.0.14206865'
+$legacyPackageName = 'com.termux'
+$standalonePackageName = 'com.paseoe'
+$latin1 = [System.Text.Encoding]::GetEncoding(28591)
+
+if ($latin1.GetByteCount($legacyPackageName) -ne $latin1.GetByteCount($standalonePackageName)) {
+    throw 'Relocated Termux package name must have the same byte length'
+}
 
 $packages = @(
     @{
@@ -42,9 +51,49 @@ function Get-Sha256([string]$Path) {
     return (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash.ToLowerInvariant()
 }
 
+function Get-AsciiOccurrenceCount([string]$Text, [string]$Needle) {
+    $count = 0
+    $offset = 0
+    while (($offset = $Text.IndexOf($Needle, $offset, [System.StringComparison]::Ordinal)) -ge 0) {
+        $count++
+        $offset += $Needle.Length
+    }
+    return $count
+}
+
+function Replace-AsciiPackageName([string]$Path) {
+    $bytes = [System.IO.File]::ReadAllBytes($Path)
+    $contents = $latin1.GetString($bytes)
+    $count = Get-AsciiOccurrenceCount $contents $legacyPackageName
+    if ($count -eq 0) { return 0 }
+
+    $relocated = $contents.Replace($legacyPackageName, $standalonePackageName)
+    $relocatedBytes = $latin1.GetBytes($relocated)
+    if ($relocatedBytes.Length -ne $bytes.Length) {
+        throw "Binary relocation changed the size of $Path"
+    }
+    [System.IO.File]::WriteAllBytes($Path, $relocatedBytes)
+    return $count
+}
+
+function Assert-NoLegacyPackageName([string]$Root) {
+    $legacyMatches = foreach ($file in Get-ChildItem -LiteralPath $Root -Recurse -File) {
+        if (($file.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { continue }
+        $contents = $latin1.GetString([System.IO.File]::ReadAllBytes($file.FullName))
+        if ($contents.Contains($legacyPackageName)) { $file.FullName }
+    }
+    if ($legacyMatches) {
+        throw "Legacy Termux package name remains in runtime payload: $($legacyMatches[0])"
+    }
+}
+
 function Assert-RuntimePayload {
     if (Test-Path -LiteralPath $legacyArchive) {
         throw 'Legacy .tar.gz runtime asset must be removed because aapt expands it'
+    }
+    if ((Test-Path -LiteralPath $legacyDebDirectory) -and
+        (Get-ChildItem -LiteralPath $legacyDebDirectory -Filter '*.deb' -File)) {
+        throw 'Bundled .deb files must be replaced by the relocated Termux runtime archive'
     }
     if (!(Test-Path -LiteralPath $manifest -PathType Leaf)) {
         throw 'Runtime manifest is missing'
@@ -74,34 +123,62 @@ function Assert-RuntimePayload {
         $records[$relativePath.Replace('\', '/')] = $true
     }
 
-    foreach ($package in $packages) {
-        $relativePath = "deb/$($package.Name)"
-        if (!$records.ContainsKey($relativePath)) {
-            throw "Runtime manifest entry is missing: $relativePath"
-        }
+    if (!$records.ContainsKey($termuxArchiveName)) {
+        throw "Runtime manifest entry is missing: $termuxArchiveName"
     }
-    if (!$records.ContainsKey($archiveName)) {
-        throw "Runtime manifest entry is missing: $archiveName"
+    if (!$records.ContainsKey($paseoArchiveName)) {
+        throw "Runtime manifest entry is missing: $paseoArchiveName"
     }
 
-    $entries = & tar.exe -tzf $archive
+    $termuxEntries = & tar.exe -tzf $termuxArchive
     if ($LASTEXITCODE -ne 0) {
-        throw "Unable to inspect $archiveName"
+        throw "Unable to inspect $termuxArchiveName"
     }
-    if ($entries -notcontains 'node_modules/@getpaseo/cli/bin/paseo') {
+    $normalizedTermuxEntries = $termuxEntries | ForEach-Object { $_ -replace '^\./', '' }
+    if ($normalizedTermuxEntries -notcontains 'bin/node') {
+        throw 'Bundled Termux Node.js executable is missing'
+    }
+    if ($normalizedTermuxEntries -notcontains 'lib/libcares.so') {
+        throw 'Bundled Termux c-ares library is missing'
+    }
+
+    $validationRoot = Join-Path ([System.IO.Path]::GetTempPath()) "paseo-runtime-validation-$PID-$([guid]::NewGuid().ToString('N'))"
+    try {
+        New-Item -ItemType Directory -Path $validationRoot | Out-Null
+        & tar.exe -xzf $termuxArchive -C $validationRoot
+        if ($LASTEXITCODE -ne 0) {
+            throw "Unable to extract $termuxArchiveName for validation"
+        }
+        Assert-NoLegacyPackageName $validationRoot
+    } finally {
+        if (Test-Path -LiteralPath $validationRoot) {
+            $resolvedValidationRoot = [System.IO.Path]::GetFullPath($validationRoot)
+            $resolvedTempRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())
+            if (!$resolvedValidationRoot.StartsWith($resolvedTempRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+                throw "Refusing to remove validation directory outside the temporary root: $resolvedValidationRoot"
+            }
+            Remove-Item -LiteralPath $resolvedValidationRoot -Recurse -Force
+        }
+    }
+
+    $paseoEntries = & tar.exe -tzf $paseoArchive
+    if ($LASTEXITCODE -ne 0) {
+        throw "Unable to inspect $paseoArchiveName"
+    }
+    if ($paseoEntries -notcontains 'node_modules/@getpaseo/cli/bin/paseo') {
         throw 'Bundled Paseo CLI entry point is missing'
     }
-    if ($entries -notcontains 'node_modules/@getpaseo/server/package.json') {
+    if ($paseoEntries -notcontains 'node_modules/@getpaseo/server/package.json') {
         throw 'Bundled Paseo server is missing'
     }
-    if ($entries -notcontains 'node_modules/node-pty/prebuilds/android-arm64/pty.node') {
+    if ($paseoEntries -notcontains 'node_modules/node-pty/prebuilds/android-arm64/pty.node') {
         throw 'Bundled Android node-pty module is missing'
     }
-    if ($entries -notcontains 'node_modules/@parcel/watcher-android-arm64/watcher.node') {
+    if ($paseoEntries -notcontains 'node_modules/@parcel/watcher-android-arm64/watcher.node') {
         throw 'Bundled Android file watcher is missing'
     }
 
-    $forbidden = $entries | Where-Object {
+    $forbidden = $paseoEntries | Where-Object {
         $_ -match '\.(exe|dll)$' -or
         $_ -match 'node_modules/node-pty/prebuilds/(win32|darwin|linux)-' -or
         $_ -match 'node_modules/@parcel/watcher-(win32|darwin|linux|freebsd)-' -or
@@ -119,32 +196,30 @@ if ($ValidateOnly) {
     exit 0
 }
 
-New-Item -ItemType Directory -Force -Path $debDirectory | Out-Null
-if (Test-Path -LiteralPath $legacyArchive) {
-    Remove-Item -LiteralPath $legacyArchive -Force
-}
-$repository = 'https://packages-cf.termux.dev/apt/termux-main'
-foreach ($package in $packages) {
-    $destination = Join-Path $debDirectory $package.Name
-    if ((Test-Path -LiteralPath $destination -PathType Leaf) -and
-        (Get-Sha256 $destination) -eq $package.Sha256) {
-        continue
-    }
-
-    Invoke-WebRequest -UseBasicParsing -Uri "$repository/$($package.Path)" -OutFile $destination
-    if ((Get-Sha256 $destination) -ne $package.Sha256) {
-        throw "Downloaded checksum mismatch: $($package.Name)"
-    }
-}
-
-$lockFile = Join-Path $npmProject 'package-lock.json'
-if (!(Test-Path -LiteralPath $lockFile -PathType Leaf)) {
-    throw "Npm lock file is missing: $lockFile"
-}
-
-$temporary = Join-Path ([System.IO.Path]::GetTempPath()) "paseo-android-runtime-$PID"
+$temporary = Join-Path ([System.IO.Path]::GetTempPath()) "paseo-android-runtime-$PID-$([guid]::NewGuid().ToString('N'))"
 try {
-    New-Item -ItemType Directory -Force -Path $temporary | Out-Null
+    $debDirectory = Join-Path $temporary 'deb'
+    New-Item -ItemType Directory -Force -Path $temporary, $debDirectory | Out-Null
+
+    $repository = 'https://packages-cf.termux.dev/apt/termux-main'
+    foreach ($package in $packages) {
+        $destination = Join-Path $debDirectory $package.Name
+        $bundledSource = Join-Path $legacyDebDirectory $package.Name
+        if ((Test-Path -LiteralPath $bundledSource -PathType Leaf) -and
+            ((Get-Sha256 $bundledSource) -eq $package.Sha256)) {
+            Copy-Item -LiteralPath $bundledSource -Destination $destination
+        } else {
+            Invoke-WebRequest -UseBasicParsing -Uri "$repository/$($package.Path)" -OutFile $destination
+        }
+        if ((Get-Sha256 $destination) -ne $package.Sha256) {
+            throw "Downloaded checksum mismatch: $($package.Name)"
+        }
+    }
+
+    $lockFile = Join-Path $npmProject 'package-lock.json'
+    if (!(Test-Path -LiteralPath $lockFile -PathType Leaf)) {
+        throw "Npm lock file is missing: $lockFile"
+    }
     Copy-Item -LiteralPath (Join-Path $npmProject 'package.json') -Destination $temporary
     Copy-Item -LiteralPath $lockFile -Destination $temporary
 
@@ -213,22 +288,62 @@ try {
     }
 
     New-Item -ItemType Directory -Force -Path $assets | Out-Null
-    if (Test-Path -LiteralPath $archive) {
-        Remove-Item -LiteralPath $archive -Force
+    if (Test-Path -LiteralPath $paseoArchive) {
+        Remove-Item -LiteralPath $paseoArchive -Force
     }
-    & tar.exe -czf $archive -C $temporary node_modules
+    & tar.exe -czf $paseoArchive -C $temporary node_modules
     if ($LASTEXITCODE -ne 0) { throw 'Unable to create the Paseo runtime archive' }
+
+    $termuxStage = Join-Path $temporary 'termux-prefix'
+    New-Item -ItemType Directory -Path $termuxStage | Out-Null
+    foreach ($package in $packages) {
+        $packageStage = Join-Path $temporary "extract-$($package.Name)"
+        New-Item -ItemType Directory -Path $packageStage | Out-Null
+        & tar.exe -xf (Join-Path $debDirectory $package.Name) -C $packageStage
+        if ($LASTEXITCODE -ne 0) { throw "Unable to unpack $($package.Name)" }
+        & tar.exe --strip-components 6 -xf (Join-Path $packageStage 'data.tar.xz') -C $termuxStage
+        if ($LASTEXITCODE -ne 0) { throw "Unable to stage $($package.Name)" }
+    }
+
+    $relocationCount = 0
+    foreach ($file in Get-ChildItem -LiteralPath $termuxStage -Recurse -File) {
+        if (($file.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { continue }
+        $relocationCount += Replace-AsciiPackageName $file.FullName
+    }
+    if ($relocationCount -eq 0) {
+        throw 'Official Termux package name was not found in runtime payload'
+    }
+    Assert-NoLegacyPackageName $termuxStage
+
+    if (Test-Path -LiteralPath $termuxArchive) {
+        Remove-Item -LiteralPath $termuxArchive -Force
+    }
+    & tar.exe -czf $termuxArchive -C $termuxStage .
+    if ($LASTEXITCODE -ne 0) { throw 'Unable to create the Termux Node runtime archive' }
 } finally {
     if (Test-Path -LiteralPath $temporary) {
-        Remove-Item -LiteralPath $temporary -Recurse -Force
+        $resolvedTemporary = [System.IO.Path]::GetFullPath($temporary)
+        $resolvedTempRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())
+        if (!$resolvedTemporary.StartsWith($resolvedTempRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "Refusing to remove runtime directory outside the temporary root: $resolvedTemporary"
+        }
+        Remove-Item -LiteralPath $resolvedTemporary -Recurse -Force
     }
 }
 
-$manifestLines = foreach ($package in $packages) {
-    $relativePath = "deb/$($package.Name)"
-    "$(Get-Sha256 (Join-Path $assets $relativePath))  $relativePath"
+if (Test-Path -LiteralPath $legacyDebDirectory) {
+    $resolvedDebDirectory = [System.IO.Path]::GetFullPath($legacyDebDirectory)
+    $resolvedAssets = [System.IO.Path]::GetFullPath($assets) + [System.IO.Path]::DirectorySeparatorChar
+    if (!$resolvedDebDirectory.StartsWith($resolvedAssets, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to remove legacy packages outside runtime assets: $resolvedDebDirectory"
+    }
+    Remove-Item -LiteralPath $resolvedDebDirectory -Recurse -Force
 }
-$manifestLines += "$(Get-Sha256 $archive)  $archiveName"
+
+$manifestLines = @(
+    "$(Get-Sha256 $termuxArchive)  $termuxArchiveName",
+    "$(Get-Sha256 $paseoArchive)  $paseoArchiveName"
+)
 Set-Content -LiteralPath $manifest -Encoding Ascii -Value $manifestLines
 
 Assert-RuntimePayload

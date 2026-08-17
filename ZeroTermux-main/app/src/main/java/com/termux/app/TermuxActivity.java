@@ -592,7 +592,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     /**
      * Start a repair-mode session: {@code /system/bin/sh} with Android PATH,
-     * cwd under {@code /data/data/com.termux/files}, without Termux PREFIX bootstrap.
+     * cwd under {@code /data/data/com.paseoe/files}, without Termux PREFIX bootstrap.
      */
     private void startRepairOrFailsafeSession(boolean repairMode) {
         try {

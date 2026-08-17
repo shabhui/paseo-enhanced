@@ -22,7 +22,7 @@ object ZtAiDebugVncHelper {
     fun startJson(): String {
         val scriptPath = "\${HOME}/.zerotermux/ai_debug_vnc_start.sh"
         val script = buildString {
-            append("#!/data/data/com.termux/files/usr/bin/bash\n")
+            append("#!/data/data/com.paseoe/files/usr/bin/bash\n")
             append("set +e\n")
             append(EditorVncEnvironment.coreVncShellFunctions())
             append("start_editor_vnc\n")

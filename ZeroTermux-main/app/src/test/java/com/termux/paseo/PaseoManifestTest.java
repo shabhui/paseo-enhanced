@@ -13,6 +13,7 @@ import org.w3c.dom.NodeList;
 
 public class PaseoManifestTest {
     private static final String ANDROID_NS = "http://schemas.android.com/apk/res/android";
+    private static final String TOOLS_NS = "http://schemas.android.com/tools";
 
     @Test
     public void standaloneManifestDisablesBackupAndLimitsCleartextToLoopback() throws Exception {
@@ -55,12 +56,35 @@ public class PaseoManifestTest {
         assertEquals("false", exported(manifest, "provider", ".app.TermuxOpenReceiver$ContentProvider"));
     }
 
+    @Test
+    public void usbDocumentProviderUsesTheStandaloneApplicationId() throws Exception {
+        Document manifest = parse(new File("src/main/AndroidManifest.xml"));
+
+        assertEquals("${applicationId}.usb.documents", attribute(
+            manifest,
+            "provider",
+            "com.github.mjdev.libaums.storageprovider.UsbDocumentProvider",
+            ANDROID_NS,
+            "authorities"));
+        assertEquals("android:authorities", attribute(
+            manifest,
+            "provider",
+            "com.github.mjdev.libaums.storageprovider.UsbDocumentProvider",
+            TOOLS_NS,
+            "replace"));
+    }
+
     private static String exported(Document document, String tag, String componentName) {
+        return attribute(document, tag, componentName, ANDROID_NS, "exported");
+    }
+
+    private static String attribute(
+        Document document, String tag, String componentName, String namespace, String attributeName) {
         NodeList nodes = document.getElementsByTagName(tag);
         for (int index = 0; index < nodes.getLength(); index++) {
             Element element = (Element) nodes.item(index);
             if (componentName.equals(element.getAttributeNS(ANDROID_NS, "name"))) {
-                return element.getAttributeNS(ANDROID_NS, "exported");
+                return element.getAttributeNS(namespace, attributeName);
             }
         }
         throw new AssertionError("Missing component " + componentName);

@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -32,12 +33,14 @@ public class PaseoAssetInstallerTest {
 
         FakeAssetSource versionOne = new FakeAssetSource()
             .file("runtime/runtime-version", "1")
+            .file("runtime/packages/manifest.txt", "")
             .file("runtime/payload.txt", "old")
             .file("runtime/stale.txt", "remove me");
         installer.install(versionOne, "runtime", destination);
 
         FakeAssetSource versionTwo = new FakeAssetSource()
             .file("runtime/runtime-version", "2")
+            .file("runtime/packages/manifest.txt", "")
             .file("runtime/payload.txt", "new");
         installer.install(versionTwo, "runtime", destination);
 
@@ -56,10 +59,12 @@ public class PaseoAssetInstallerTest {
         PaseoAssetInstaller installer = new PaseoAssetInstaller();
         installer.install(new FakeAssetSource()
             .file("runtime/runtime-version", "1")
+            .file("runtime/packages/manifest.txt", "")
             .file("runtime/payload.txt", "working"), "runtime", destination);
 
         FakeAssetSource brokenUpgrade = new FakeAssetSource()
             .file("runtime/runtime-version", "2")
+            .file("runtime/packages/manifest.txt", "")
             .file("runtime/payload.txt", "broken")
             .failOnOpen("runtime/payload.txt");
 
@@ -68,8 +73,36 @@ public class PaseoAssetInstallerTest {
         assertEquals("working", read(new File(destination, "payload.txt")));
     }
 
+    @Test
+    public void sameVersionWithCorruptedRuntimePayloadIsReinstalled() throws Exception {
+        File destination = new File(temporaryFolder.getRoot(), "runtime");
+        PaseoAssetInstaller installer = new PaseoAssetInstaller();
+        String payload = "healthy runtime";
+        String manifest = sha256(payload) + "  runtime.tgz";
+        FakeAssetSource source = new FakeAssetSource()
+            .file("runtime/runtime-version", "1")
+            .file("runtime/packages/manifest.txt", manifest)
+            .file("runtime/packages/runtime.tgz", payload);
+
+        installer.install(source, "runtime", destination);
+        Files.write(new File(destination, "packages/runtime.tgz").toPath(),
+            "corrupted".getBytes(StandardCharsets.UTF_8));
+
+        installer.install(source, "runtime", destination);
+
+        assertEquals(payload, read(new File(destination, "packages/runtime.tgz")));
+    }
+
     private static String read(File file) throws IOException {
         return new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8).trim();
+    }
+
+    private static String sha256(String contents) throws Exception {
+        byte[] digest = MessageDigest.getInstance("SHA-256")
+            .digest(contents.getBytes(StandardCharsets.UTF_8));
+        StringBuilder hex = new StringBuilder();
+        for (byte value : digest) hex.append(String.format("%02x", value & 0xff));
+        return hex.toString();
     }
 
     private static final class FakeAssetSource implements PaseoAssetInstaller.AssetSource {

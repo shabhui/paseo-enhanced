@@ -132,7 +132,7 @@ object XinhaoStoragePath {
 
     /**
      * 已安装菜单包（解压后）及切换状态文件，固定为应用私有目录。
-     * /data/data/com.termux/files/menu
+     * /data/data/com.paseoe/files/menu
      */
     @JvmStatic @JvmOverloads
     fun getMenuInstallDir(context: Context = UUtils.getContext()): File {
@@ -292,15 +292,15 @@ object XinhaoStoragePath {
             R.string.backup_success
         }
         return "cd ~ && cd ~ && tar -$tarOption ${getTerminalDataPath()}/$systemName " +
-            "/data/data/com.termux/files && echo \"${UUtils.getString(successRes)}\" \n"
+            "/data/data/com.paseoe/files && echo \"${UUtils.getString(successRes)}\" \n"
     }
 
     @JvmStatic
     fun getShellRestore(command: String, archiveName: String, containerDirName: String): String {
         val archive = archiveName.replace(" ", "")
         return "cd ~ && cd ~ && tar -v -$command ${getTerminalDataPath()}/$archive " +
-            "-C ../../$containerDirName && mv ../../$containerDirName/data/data/com.termux/files/home " +
-            "../../$containerDirName && mv ../../$containerDirName/data/data/com.termux/files/usr " +
+            "-C ../../$containerDirName && mv ../../$containerDirName/data/data/com.paseoe/files/home " +
+            "../../$containerDirName && mv ../../$containerDirName/data/data/com.paseoe/files/usr " +
             "../../$containerDirName && rm -rf ../../$containerDirName/data && " +
             "echo \"${UUtils.getString(R.string.system_restore_success)}\" \n"
     }

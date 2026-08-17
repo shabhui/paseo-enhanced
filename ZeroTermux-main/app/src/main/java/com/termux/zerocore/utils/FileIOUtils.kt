@@ -32,9 +32,9 @@ object FileIOUtils {
     public const val TAG = "FileIOUtils"
 
     //环境
-    public const val TERMUX_CHROOT = "/data/data/com.termux/files/usr/bin/termux-chroot"
-    public const val TERMUX_WGET = "/data/data/com.termux/files/usr/bin/wget"
-    public const val TERMUX_QEMU = "/data/data/com.termux/files/usr/bin/qemu-system-x86_64"
+    public const val TERMUX_CHROOT = "/data/data/com.paseoe/files/usr/bin/termux-chroot"
+    public const val TERMUX_WGET = "/data/data/com.paseoe/files/usr/bin/wget"
+    public const val TERMUX_QEMU = "/data/data/com.paseoe/files/usr/bin/qemu-system-x86_64"
 
     public fun getConfigFilePath(): String {
         return XinhaoStoragePath.getConfigDir(UUtils.getContext()).absolutePath + "/"
@@ -242,7 +242,7 @@ object FileIOUtils {
         return mContext.filesDir.absolutePath + "/home/storage"
     }
     public fun getTermuxPathFile(mContext: Context): File {
-        return File("/data/data/com.termux/")
+        return File("/data/data/com.paseoe/")
     }
 
     public fun isStoragePath(mContext: Context): Boolean {

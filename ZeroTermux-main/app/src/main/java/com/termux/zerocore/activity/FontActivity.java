@@ -38,7 +38,7 @@ public class FontActivity extends BaseThemeActivity {
     private ListView list_view;
     private File fontFile;
     private ArrayList<FondDatdBean> arrayList;
-    private File termuxFontFile = new File("/data/data/com.termux/files/home/.termux/font.ttf");
+    private File termuxFontFile = new File("/data/data/com.paseoe/files/home/.termux/font.ttf");
     private FontAdapter fontAdapter;
 
     @Override
@@ -48,7 +48,7 @@ public class FontActivity extends BaseThemeActivity {
         setContentView(R.layout.activity_font);
         list_view = findViewById(R.id.list_view);
         getBaseTitle().setVisibility(View.GONE);
-        File file1 = new File("/data/data/com.termux/files/home/.termux/");
+        File file1 = new File("/data/data/com.paseoe/files/home/.termux/");
         if(!file1.exists()){
             file1.mkdirs();
         }

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <!DOCTYPE resources [
-    <!ENTITY TERMUX_PACKAGE_NAME "com.termux">
+    <!ENTITY TERMUX_PACKAGE_NAME "com.paseoe">
     <!ENTITY TERMUX_APP_NAME "Termux">
     <!ENTITY TERMUX_API_APP_NAME "Termux:API">
     <!ENTITY TERMUX_BOOT_APP_NAME "Termux:Boot">
@@ -1118,6 +1118,7 @@ Reset successfully</string>
     <string name="zt_developer">Development/Contribution</string>
     <string name="zt_developer_note">hotianbexuanto、Kevin Williams、狂吃不胖没办法、SharpIce 锐冰龙、WINLOG \n小潼(XiaoTong6666)、XINHAO_HAN、Xieansecn etc (in no particular order)</string>
     <string name="zt_install">Restore/expand official version</string>
+    <string name="standalone_companion_apps_disabled">Legacy ZeroTermux companion installers are disabled in the standalone build.</string>
     <string name="zt_install_float">This plugin is not installed! Please go to [Settings -> Install/Restore Termux official software -> Termux Float] to install the plug-in</string>
     <string name="zt_install_file">This plugin is not installed! Please go to [Settings -> Install/Restore Termux official software -> (Zero)Utermux File Plug] to install the plug-in</string>
     <string name="zt_volume_function_title">Restore volume +- keys</string>
@@ -1403,8 +1404,8 @@ Known Issue: Rapid consecutive back operations may cause black screen in Interna
         ln[ \n
         Description: current directory internal storage path \n
         Note: Both paths must be absolute paths \n
-        Example: ln /data/data/com.termux/files/home/custom_name /sdcard/ \n
-        Example (or specify a directory): ln /data/data/com.termux/files/home/custom_name /sdcard/custom_directory/ \n
+        Example: ln /data/data/com.paseoe/files/home/custom_name /sdcard/ \n
+        Example (or specify a directory): ln /data/data/com.paseoe/files/home/custom_name /sdcard/custom_directory/ \n
         ] \n
         --------Version 0.2 Update--------\n
         zt dialog \n
@@ -1420,8 +1421,8 @@ Known Issue: Rapid consecutive back operations may cause black screen in Interna
         zt backgroundimage(bgi) Image path (set as current terminal background)\n
         backgroundimage(bgi)[\n
         Usage Help (full path required):\n
-        zt backgroundimage /data/data/com.termux/files/home/.img/back.jpg \n
-        zt bgi /data/data/com.termux/files/home/.img/back.jpg \n
+        zt backgroundimage /data/data/com.paseoe/files/home/.img/back.jpg \n
+        zt bgi /data/data/com.paseoe/files/home/.img/back.jpg \n
         ]\n
         \n
         zt qr Open Scan (scan QR code or barcode)\n

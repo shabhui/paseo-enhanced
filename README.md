@@ -66,19 +66,20 @@ npm install -g @getpaseo/cli@0.3.1
 
 ## Android 客户端
 
-独立 arm64 APK 位于
-`android/releases/PaseoEnhanced-v2.3.0-arm64.apk`。它已经内置 Termux
-bootstrap、Node.js 24、Paseo CLI 0.3.1、Paseo Enhanced 2.3.0 和 Android arm64
+独立 arm64 APK 作为 `v2.3.1` GitHub Release 附件发布；本地构建产物位于
+`android/releases/PaseoEnhanced-v2.3.1-arm64.apk`，不纳入 Git 跟踪。它已经内置 Termux
+bootstrap、Node.js 24、Paseo CLI 0.3.1、Paseo Enhanced 2.3.1 和 Android arm64
 原生模块，不需要另外安装 ZeroTermux 或 Termux。首次启动会在应用私有目录离线
 安装这些运行文件，启动 Paseo Daemon，等待 `http://127.0.0.1:6767/` 就绪后直接
 打开 Web UI。最低系统版本为 Android 7.0（API 24）。
 
 APK SHA-256：
-`1C28D14C64627D1EF7356421273006963AAFD91706627CC8035463C1B1EBC426`
+`4A662DC44D7773535AA05D213D08CE3CFE11037A21BBF062134DAC8F730B4AED`
 
 Android 工程位于 `ZeroTermux-main/`，离线运行时准备脚本位于
-`scripts/prepare-android-runtime.ps1`。应用必须继续使用包名 `com.termux`，因此
-不能与其他使用相同包名但签名不同的 Termux/ZeroTermux 安装共存。
+`scripts/prepare-android-runtime.ps1`。应用使用独立包名 `com.paseoe`，可以与原来的
+ZeroTermux (`com.termux`) 共存；Termux Java namespace 仍保留为 `com.termux`，
+bootstrap 和运行时前缀已迁移到 `/data/data/com.paseoe/files/usr`。
 
 ## 安全说明
 

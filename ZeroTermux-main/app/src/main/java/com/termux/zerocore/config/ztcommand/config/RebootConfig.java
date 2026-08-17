@@ -11,7 +11,7 @@ public class RebootConfig extends BaseOkJsonConfig {
     @Override
     public String getCommand(Context context, String command) {
         Intent intent = new Intent(context, TermuxService.class);
-        intent.setAction("com.termux.service_stop");
+        intent.setAction("com.paseoe.service_stop");
         context.startService(intent);
         return getOkJson();
     }

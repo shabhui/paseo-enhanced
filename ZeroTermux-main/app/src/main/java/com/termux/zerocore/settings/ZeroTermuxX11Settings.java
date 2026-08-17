@@ -270,7 +270,7 @@ public class ZeroTermuxX11Settings extends BaseTitleActivity {
         SwitchDialog switchDialog = new SwitchDialog(this);
         switchDialog.createSwitchDialog(getString(R.string.x11_dialog_reset));
         switchDialog.getOk().setOnClickListener(view -> {
-            new Intent(ZeroTermuxX11Settings.this, TermuxService.class).setAction("com.termux.service_stop");
+            new Intent(ZeroTermuxX11Settings.this, TermuxService.class).setAction("com.paseoe.service_stop");
             System.exit(0);
             finish();
         });

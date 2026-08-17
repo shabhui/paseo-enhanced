@@ -1036,7 +1036,7 @@
                         android:singleLine="true"
                         android:textColor="#CCCCCC"
                         android:textSize="12sp"
-                        tools:text="/data/data/com.termux/files/home" />
+                        tools:text="/data/data/com.paseoe/files/home" />
 
                     <TextView
                         android:id="@+id/sidebar_create_java"

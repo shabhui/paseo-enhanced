@@ -41,15 +41,15 @@ import java.util.ArrayList;
 
 public class RestoreFragment extends BaseFragment {
 
-    private File mFile12 = new File("/data/data/com.termux/files/usr");
-    private File mFile13 = new File("/data/data/com.termux/files/home");
+    private File mFile12 = new File("/data/data/com.paseoe/files/usr");
+    private File mFile13 = new File("/data/data/com.paseoe/files/home");
     private File mSdFile;
-    private File mFileHomeFiles = new File("/data/data/com.termux/files/");
-    private File mFileHome = new File("/data/data/com.termux/busybox");
-    private File mFileHomeStatic = new File("/data/data/com.termux/busybox_static");
-    private File mFileHomeProot = new File("/data/data/com.termux/proot");
-    private File mFileHomeMain = new File("/data/data/com.termux/files/usr/bin/tar");
-    private File mFileHomeMainTar = new File("/data/data/com.termux/busybox_tar");
+    private File mFileHomeFiles = new File("/data/data/com.paseoe/files/");
+    private File mFileHome = new File("/data/data/com.paseoe/busybox");
+    private File mFileHomeStatic = new File("/data/data/com.paseoe/busybox_static");
+    private File mFileHomeProot = new File("/data/data/com.paseoe/proot");
+    private File mFileHomeMain = new File("/data/data/com.paseoe/files/usr/bin/tar");
+    private File mFileHomeMainTar = new File("/data/data/com.paseoe/busybox_tar");
     private ListView mListView;
     private TextView mTitle;
     private TextView mStartRe;
@@ -128,7 +128,7 @@ public class RestoreFragment extends BaseFragment {
 
 
 
-                        if (!(new File("/data/data/com.termux/files/home/storage").exists())){
+                        if (!(new File("/data/data/com.paseoe/files/home/storage").exists())){
 
                             Toast.makeText(UUtils.getContext(), UUtils.getString(R.string.没有找到目录), Toast.LENGTH_SHORT).show();
 

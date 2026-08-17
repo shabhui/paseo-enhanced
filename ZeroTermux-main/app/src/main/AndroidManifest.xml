@@ -2,9 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     package="com.termux"
-    android:installLocation="internalOnly"
-    android:sharedUserId="${TERMUX_PACKAGE_NAME}"
-    android:sharedUserLabel="@string/shared_user_label">
+    android:installLocation="internalOnly">
 
     <uses-feature
         android:name="android.hardware.touchscreen"
@@ -308,11 +306,12 @@
 
         <provider
             android:name="com.github.mjdev.libaums.storageprovider.UsbDocumentProvider"
-            android:authorities="com.github.mjdev.libaums.storageprovider.documents"
+            android:authorities="${applicationId}.usb.documents"
             android:enabled="@bool/isAtLeastKitKat"
             android:exported="true"
             android:grantUriPermissions="true"
-            android:permission="android.permission.MANAGE_DOCUMENTS">
+            android:permission="android.permission.MANAGE_DOCUMENTS"
+            tools:replace="android:authorities">
             <intent-filter>
                 <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
             </intent-filter>

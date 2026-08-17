@@ -9,8 +9,27 @@ def releaseStorePassword = System.getenv("RELEASE_STORE_PASSWORD")
 def releaseKeyPassword = System.getenv("RELEASE_KEY_PASSWORD")
 def releaseSigningValues = [releaseStoreFile, releaseKeyAlias, releaseStorePassword, releaseKeyPassword]
 def releaseSigningConfigured = releaseSigningValues.every { it != null && !it.trim().isEmpty() }
+def releaseArtifactRequested = gradle.startParameter.taskNames.any { taskName ->
+    String simpleName = taskName.tokenize(':').last().toLowerCase(java.util.Locale.ROOT)
+    (simpleName.startsWith("assemble") || simpleName.startsWith("bundle")) && simpleName.contains("release")
+}
 if (!releaseSigningConfigured && releaseSigningValues.any { it != null && !it.trim().isEmpty() }) {
     throw new GradleException("Release signing requires RELEASE_STORE_FILE, RELEASE_KEY_ALIAS, RELEASE_STORE_PASSWORD, and RELEASE_KEY_PASSWORD")
+}
+if (releaseArtifactRequested && !releaseSigningConfigured) {
+    throw new GradleException("Release builds require configured signing credentials")
+}
+
+def legacyTermuxPackageName = "com.termux"
+def standalonePackageName = "com.paseoe"
+def legacyBootstrapJavaClasses = [
+    "com.termux.app.TermuxActivity",
+    "com.termux.app.TermuxOpenReceiver",
+    "com.termux.app.TermuxService",
+    "com.termux.termuxam.Am"
+]
+if (legacyTermuxPackageName.getBytes("US-ASCII").length != standalonePackageName.getBytes("US-ASCII").length) {
+    throw new GradleException("Relocated Termux package name must have the same byte length")
 }
 
 // ZeroTermux add {@
@@ -131,13 +150,14 @@ android {
     }
 
     defaultConfig {
+        applicationId standalonePackageName
         minSdkVersion project.properties.minSdkVersion.toInteger()
         targetSdkVersion project.properties.targetSdkVersion.toInteger()
         // ZeroTermux modify {@
         // versionCode 118
         // versionName "0.118.0"
         versionCode 118
-        versionName "0.118.3.64"
+        versionName "2.3.1"
         // @}
         if (appVersionName) versionName = appVersionName
         validateVersionName(versionName)
@@ -145,7 +165,7 @@ android {
         buildConfigField "String", "TERMUX_PACKAGE_VARIANT", "\"" + project.ext.packageVariant + "\""
         // Used by TermuxApplication class
 
-        manifestPlaceholders.TERMUX_PACKAGE_NAME = "com.termux"
+        manifestPlaceholders.TERMUX_PACKAGE_NAME = standalonePackageName
         manifestPlaceholders.TERMUX_APP_NAME = "Termux"
         manifestPlaceholders.TERMUX_API_APP_NAME = "Termux:API"
         manifestPlaceholders.TERMUX_BOOT_APP_NAME = "Termux:Boot"
@@ -333,10 +353,10 @@ def validateVersionName(String versionName) {
     // @}
 }
 
-def downloadBootstrap(String arch, String expectedChecksum, String version) {
+def downloadBootstrap(String arch, String expectedChecksum, String version, String localFileName) {
     def digest = java.security.MessageDigest.getInstance("SHA-256")
 
-    def localUrl = "src/main/cpp/bootstrap-" + arch + ".zip"
+    def localUrl = "src/main/cpp/" + localFileName
     def file = new File(projectDir, localUrl)
     if (file.exists()) {
         def buffer = new byte[8192]
@@ -380,6 +400,134 @@ def downloadBootstrap(String arch, String expectedChecksum, String version) {
     }
 }
 
+def replaceAsciiBytes(byte[] input, byte[] source, byte[] replacement) {
+    if (source.length != replacement.length) {
+        throw new GradleException("Relocated Termux package name must have the same byte length")
+    }
+
+    int replacements = 0
+    for (int offset = 0; offset <= input.length - source.length; offset++) {
+        boolean matches = true
+        for (int index = 0; index < source.length; index++) {
+            if (input[offset + index] != source[index]) {
+                matches = false
+                break
+            }
+        }
+        if (!matches) continue
+        System.arraycopy(replacement, 0, input, offset, replacement.length)
+        replacements++
+        offset += source.length - 1
+    }
+    return replacements
+}
+
+def containsAsciiBytes(byte[] input, byte[] target) {
+    for (int offset = 0; offset <= input.length - target.length; offset++) {
+        boolean matches = true
+        for (int index = 0; index < target.length; index++) {
+            if (input[offset + index] != target[index]) {
+                matches = false
+                break
+            }
+        }
+        if (matches) return true
+    }
+    return false
+}
+
+def relocateBootstrap(
+    File source,
+    File destination,
+    String legacyPackage,
+    String relocatedPackage,
+    List<String> preservedJavaClasses) {
+    byte[] legacyBytes = legacyPackage.getBytes("US-ASCII")
+    byte[] relocatedBytes = relocatedPackage.getBytes("US-ASCII")
+    if (legacyBytes.length != relocatedBytes.length) {
+        throw new GradleException("Relocated Termux package name must have the same byte length")
+    }
+
+    File temporary = new File(destination.parentFile, destination.name + ".tmp")
+    temporary.delete()
+    int replacements = 0
+    new java.util.zip.ZipInputStream(new BufferedInputStream(new FileInputStream(source))).withCloseable { input ->
+        new java.util.zip.ZipOutputStream(new BufferedOutputStream(new FileOutputStream(temporary))).withCloseable { output ->
+            java.util.zip.ZipEntry entry
+            byte[] buffer = new byte[8192]
+            while ((entry = input.nextEntry) != null) {
+                String relocatedName = entry.name.replace(legacyPackage, relocatedPackage)
+                if (relocatedName != entry.name) replacements++
+                java.util.zip.ZipEntry relocatedEntry = new java.util.zip.ZipEntry(relocatedName)
+                if (entry.time >= 0) relocatedEntry.time = entry.time
+                output.putNextEntry(relocatedEntry)
+                if (!entry.directory) {
+                    ByteArrayOutputStream contents = new ByteArrayOutputStream()
+                    int count
+                    while ((count = input.read(buffer)) != -1) contents.write(buffer, 0, count)
+                    byte[] relocatedContents = contents.toByteArray()
+                    replacements += replaceAsciiBytes(relocatedContents, legacyBytes, relocatedBytes)
+                    preservedJavaClasses.each { legacyClassName ->
+                        String relocatedClassName = legacyClassName.replace(legacyPackage, relocatedPackage)
+                        replacements += replaceAsciiBytes(
+                            relocatedContents,
+                            relocatedClassName.getBytes("US-ASCII"),
+                            legacyClassName.getBytes("US-ASCII"))
+                    }
+                    output.write(relocatedContents)
+                }
+                output.closeEntry()
+                input.closeEntry()
+            }
+        }
+    }
+    if (replacements == 0) {
+        temporary.delete()
+        throw new GradleException("Official Termux package name was not found in bootstrap")
+    }
+
+    new java.util.zip.ZipInputStream(new BufferedInputStream(new FileInputStream(temporary))).withCloseable { input ->
+        java.util.zip.ZipEntry entry
+        byte[] buffer = new byte[8192]
+        while ((entry = input.nextEntry) != null) {
+            if (entry.name.contains(legacyPackage)) {
+                throw new GradleException("Legacy Termux package name remains in relocated bootstrap")
+            }
+            ByteArrayOutputStream contents = new ByteArrayOutputStream()
+            int count
+            while ((count = input.read(buffer)) != -1) contents.write(buffer, 0, count)
+            byte[] relocatedContents = contents.toByteArray()
+            def legacyAppIdentifiers = [
+                "/data/data/${legacyPackage}",
+                "/data/user/0/${legacyPackage}",
+                "${legacyPackage}/",
+                "${legacyPackage}.app.reload_style",
+                "${legacyPackage}.service_wake_lock",
+                "${legacyPackage}.service_wake_unlock"
+            ]
+            legacyAppIdentifiers.each { identifier ->
+                if (containsAsciiBytes(relocatedContents, identifier.getBytes("US-ASCII"))) {
+                    throw new GradleException("Legacy Termux package name remains in relocated bootstrap")
+                }
+            }
+            preservedJavaClasses.each { legacyClassName ->
+                String relocatedClassName = legacyClassName.replace(legacyPackage, relocatedPackage)
+                if (!containsAsciiBytes(relocatedContents, legacyClassName.getBytes("US-ASCII")) &&
+                    containsAsciiBytes(relocatedContents, relocatedClassName.getBytes("US-ASCII"))) {
+                    throw new GradleException("Termux Java class namespace was relocated in bootstrap")
+                }
+            }
+            input.closeEntry()
+        }
+    }
+
+    destination.delete()
+    if (!temporary.renameTo(destination)) {
+        temporary.delete()
+        throw new GradleException("Unable to install relocated Termux bootstrap")
+    }
+}
+
 clean {
     doLast {
         def tree = fileTree(new File(projectDir, 'src/main/cpp'))
@@ -389,6 +537,7 @@ clean {
 }
 
 task downloadBootstraps() {
+    outputs.file(file("src/main/cpp/bootstrap-aarch64.zip"))
     // ZeroTermux modify{@
     /*doLast {
         def packageVariant = project.ext.packageVariant
@@ -422,7 +571,14 @@ task downloadBootstraps() {
         }
         def selectedBootstrapArchitectures = ["aarch64"]
         selectedBootstrapArchitectures.each { bootstrapArch ->
-            downloadBootstrap(bootstrapArch, bootstrapChecksums[bootstrapArch], version)
+            String sourceName = "bootstrap-aarch64-com.termux.zip"
+            downloadBootstrap(bootstrapArch, bootstrapChecksums[bootstrapArch], version, sourceName)
+            relocateBootstrap(
+                file("src/main/cpp/${sourceName}"),
+                file("src/main/cpp/bootstrap-${bootstrapArch}.zip"),
+                legacyTermuxPackageName,
+                standalonePackageName,
+                legacyBootstrapJavaClasses)
         }
     }
     // @}

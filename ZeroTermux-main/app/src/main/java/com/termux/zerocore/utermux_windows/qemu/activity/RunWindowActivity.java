@@ -53,11 +53,11 @@ public class RunWindowActivity extends AppCompatActivity implements TermuxData.I
     private LinearLayout other;
 
 
-    private File mFile = new File("/data/data/com.termux/files/usr/bin/qemu-system-x86_64");
-    private File mFileQemuStart = new File("/data/data/com.termux/files/home/.qemustart/start.sh");
-    private File mFileQemuStart1 = new File("/data/data/com.termux/files/home/.qemustart");
-    private File mFile1 = new File("/data/data/com.termux/files/usr/bin/qemu-x86_64-static");
-    private File mFile2 = new File("/data/data/com.termux/files/usr/bin/qemu-system-i386");
+    private File mFile = new File("/data/data/com.paseoe/files/usr/bin/qemu-system-x86_64");
+    private File mFileQemuStart = new File("/data/data/com.paseoe/files/home/.qemustart/start.sh");
+    private File mFileQemuStart1 = new File("/data/data/com.paseoe/files/home/.qemustart");
+    private File mFile1 = new File("/data/data/com.paseoe/files/usr/bin/qemu-x86_64-static");
+    private File mFile2 = new File("/data/data/com.paseoe/files/usr/bin/qemu-system-i386");
     private File mWin10;
     private File mWin10RunPath;
     private File mWin7;
@@ -323,8 +323,8 @@ public class RunWindowActivity extends AppCompatActivity implements TermuxData.I
         });
 
 
-        File fileProot = new File("/data/data/com.termux/files/usr/bin/termux-chroot");
-        File fileWget = new File("/data/data/com.termux/files/usr/bin/wget");
+        File fileProot = new File("/data/data/com.paseoe/files/usr/bin/termux-chroot");
+        File fileWget = new File("/data/data/com.paseoe/files/usr/bin/wget");
 
 
         if (!fileProot.exists() || !fileWget.exists()) {
@@ -382,7 +382,7 @@ public class RunWindowActivity extends AppCompatActivity implements TermuxData.I
                     new Thread(new Runnable() {
                         @Override
                         public void run() {
-                            writerFile(new File(("/data/data/com.termux/files/usr/bin/qemu-system-ppc")));
+                            writerFile(new File(("/data/data/com.paseoe/files/usr/bin/qemu-system-ppc")));
 
                             try {
                                 Thread.sleep(2000);
@@ -830,13 +830,13 @@ public class RunWindowActivity extends AppCompatActivity implements TermuxData.I
                     //mFileQemuStart
 
                     StringBuilder stringBuilder = new StringBuilder();
-                    stringBuilder.append("#!/data/data/com.termux/files/usr/bin/bash\n");
+                    stringBuilder.append("#!/data/data/com.paseoe/files/usr/bin/bash\n");
                     stringBuilder.append("\n");
                     stringBuilder.append(cmd).append("\n");
                     stringBuilder.append("\n");
                     stringBuilder.append("am broadcast --user 0 \\\n");
-                    stringBuilder.append("  --es com.termux.app.reload_style qemu_run_error \\\n");
-                    stringBuilder.append("  -a com.termux.app.reload_style com.termux > /dev/null \\\n");
+                    stringBuilder.append("  --es com.paseoe.app.reload_style qemu_run_error \\\n");
+                    stringBuilder.append("  -a com.paseoe.app.reload_style com.termux > /dev/null \\\n");
 
 
                     UUtils.setFileString(mFileQemuStart, stringBuilder.toString());
@@ -1022,7 +1022,7 @@ public class RunWindowActivity extends AppCompatActivity implements TermuxData.I
         unregisterReceiver(mBroadcastReceiever);
     }
 
-    private static final String RELOAD_STYLE_ACTION = "com.termux.app.reload_style";
+    private static final String RELOAD_STYLE_ACTION = "com.paseoe.app.reload_style";
 
     private final BroadcastReceiver mBroadcastReceiever = new BroadcastReceiver() {
         @Override

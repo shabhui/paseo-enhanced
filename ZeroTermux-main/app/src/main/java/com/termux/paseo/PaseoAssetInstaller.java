@@ -8,6 +8,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 public final class PaseoAssetInstaller {
     interface AssetSource {
@@ -17,6 +19,7 @@ public final class PaseoAssetInstaller {
 
     private static final int BUFFER_SIZE = 16 * 1024;
     private static final String VERSION_FILE = "runtime-version";
+    private static final String PACKAGE_MANIFEST = "packages/manifest.txt";
 
     public void install(AssetManager assets, String assetRoot, File destination) throws IOException {
         install(new AssetManagerSource(assets), assetRoot, destination);
@@ -35,7 +38,8 @@ public final class PaseoAssetInstaller {
         String bundledVersion = readText(source.open(assetRoot + "/" + VERSION_FILE));
         File installedVersionFile = new File(destination, VERSION_FILE);
         if (destination.isDirectory() && installedVersionFile.isFile() &&
-            bundledVersion.equals(readText(installedVersionFile))) {
+            bundledVersion.equals(readText(installedVersionFile)) &&
+            installedPayloadMatches(source, assetRoot, destination)) {
             deleteRecursively(backup);
             return;
         }
@@ -46,6 +50,7 @@ public final class PaseoAssetInstaller {
             if (!bundledVersion.equals(stagedVersion)) {
                 throw new IOException("Staged Paseo runtime version does not match bundled assets");
             }
+            validateInstalledPayload(source, assetRoot, staging);
         } catch (IOException error) {
             deleteRecursively(staging);
             throw error;
@@ -94,6 +99,67 @@ public final class PaseoAssetInstaller {
         if (!destination.exists() && backup.exists() && !backup.renameTo(destination)) {
             throw new IOException("Unable to restore the previous Paseo runtime");
         }
+    }
+
+    private static boolean installedPayloadMatches(
+        AssetSource source, String assetRoot, File destination) {
+        try {
+            validateInstalledPayload(source, assetRoot, destination);
+            return true;
+        } catch (IOException error) {
+            return false;
+        }
+    }
+
+    private static void validateInstalledPayload(
+        AssetSource source, String assetRoot, File destination) throws IOException {
+        String bundledManifest = readText(source.open(assetRoot + "/" + PACKAGE_MANIFEST));
+        File installedManifest = new File(destination, PACKAGE_MANIFEST);
+        if (!installedManifest.isFile() || !bundledManifest.equals(readText(installedManifest))) {
+            throw new IOException("Installed runtime manifest does not match bundled assets");
+        }
+
+        File packageDirectory = new File(destination, "packages").getCanonicalFile();
+        String packagePrefix = packageDirectory.getPath() + File.separator;
+        for (String line : bundledManifest.split("\\r?\\n")) {
+            if (line.trim().isEmpty()) continue;
+            int separator = line.indexOf("  ");
+            if (separator != 64 || separator + 2 >= line.length()) {
+                throw new IOException("Invalid bundled runtime manifest line: " + line);
+            }
+
+            String expected = line.substring(0, separator);
+            String relative = line.substring(separator + 2);
+            File payload = new File(packageDirectory, relative).getCanonicalFile();
+            if (!payload.getPath().startsWith(packagePrefix) || !payload.isFile()) {
+                throw new IOException("Installed runtime payload is missing: " + relative);
+            }
+            if (!expected.equals(sha256(payload))) {
+                throw new IOException("Installed runtime payload checksum mismatch: " + relative);
+            }
+        }
+    }
+
+    private static String sha256(File file) throws IOException {
+        final MessageDigest digest;
+        try {
+            digest = MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException error) {
+            throw new IOException("SHA-256 is unavailable", error);
+        }
+
+        try (InputStream input = new FileInputStream(file)) {
+            byte[] buffer = new byte[BUFFER_SIZE];
+            int read;
+            while ((read = input.read(buffer)) != -1) digest.update(buffer, 0, read);
+        }
+
+        StringBuilder hex = new StringBuilder(64);
+        for (byte value : digest.digest()) {
+            hex.append(Character.forDigit((value >>> 4) & 0xf, 16));
+            hex.append(Character.forDigit(value & 0xf, 16));
+        }
+        return hex.toString();
     }
 
     private static void ensureDirectory(File directory) throws IOException {

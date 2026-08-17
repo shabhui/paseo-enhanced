@@ -1,4 +1,4 @@
-#!/data/data/com.termux/files/usr/bin/bash
+#!/data/data/com.paseoe/files/usr/bin/bash
 set -u
 
 RUN_ID="${1:?Missing Paseo run id}"
@@ -6,7 +6,7 @@ APP_DIR="$HOME/.paseo-app"
 RUNTIME_DIR="$APP_DIR/runtime"
 STATUS_FILE="$APP_DIR/status-$RUN_ID"
 LOG_FILE="$APP_DIR/startup.log"
-ENHANCED_VERSION="2.3.0"
+ENHANCED_VERSION="2.3.1"
 
 mkdir -p "$APP_DIR"
 

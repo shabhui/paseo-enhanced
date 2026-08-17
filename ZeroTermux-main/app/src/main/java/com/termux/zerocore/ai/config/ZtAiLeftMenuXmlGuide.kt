@@ -224,19 +224,19 @@ object ZtAiLeftMenuXmlGuide {
             .put(clickType(
                 "ztEditText:",
                 ZtAiStrings.str(R.string.zt_ai_click_ztedittext_desc),
-                """click="ztEditText:/data/data/com.termux/files/home/ZtInfo/main_menu_path.xml"""",
+                """click="ztEditText:/data/data/com.paseoe/files/home/ZtInfo/main_menu_path.xml"""",
                 ZtAiStrings.str(R.string.zt_ai_click_ztedittext_note)
             ))
             .put(clickType(
                 "startActivity:",
                 ZtAiStrings.str(R.string.zt_ai_click_startactivity_desc),
-                """click="startActivity:com.termux.zerocore.settings.ZtSettingsActivity" packageName="com.termux"""",
+                """click="startActivity:com.termux.zerocore.settings.ZtSettingsActivity" packageName="com.paseoe"""",
                 ZtAiStrings.str(R.string.zt_ai_click_startactivity_note)
             ))
             .put(clickType(
                 "actionActivity:",
                 ZtAiStrings.str(R.string.zt_ai_click_actionactivity_desc),
-                """click="actionActivity:android.settings.WIRELESS_SETTINGS" packageName="com.android.settings" intentData="data@@com.termux"""",
+                """click="actionActivity:android.settings.WIRELESS_SETTINGS" packageName="com.android.settings" intentData="data@@com.paseoe"""",
                 ZtAiStrings.str(R.string.zt_ai_click_actionactivity_note)
             ))
             .put(clickType(

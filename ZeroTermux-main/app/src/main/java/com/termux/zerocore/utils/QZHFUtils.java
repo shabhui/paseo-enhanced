@@ -22,7 +22,7 @@ import java.util.ArrayList;
 
 public class QZHFUtils {
 
-    private File mFile = new File("/data/data/com.termux/");
+    private File mFile = new File("/data/data/com.paseoe/");
     private File createFile;
 
     public void main(MyDialog myDialog, String systemName, BackupFragment restoreFragment) {
@@ -88,7 +88,7 @@ public class QZHFUtils {
                     e.printStackTrace();
                 }
 
-                if (!(new File("/data/data/com.termux/files/home/storage").exists())) {
+                if (!(new File("/data/data/com.paseoe/files/home/storage").exists())) {
 
 
                     UUtils.getHandler().post(new Runnable() {

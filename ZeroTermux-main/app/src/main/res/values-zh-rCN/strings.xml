@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-<!DOCTYPE resources [<!ENTITY TERMUX_PACKAGE_NAME "com.termux"><!ENTITY TERMUX_APP_NAME "ZeroTermux"><!ENTITY TERMUX_API_APP_NAME "Termux:API"><!ENTITY TERMUX_BOOT_APP_NAME "Termux:Boot"><!ENTITY TERMUX_FLOAT_APP_NAME "Termux:Float"><!ENTITY TERMUX_STYLING_APP_NAME "Termux:Styling"><!ENTITY TERMUX_TASKER_APP_NAME "Termux:Tasker"><!ENTITY TERMUX_WIDGET_APP_NAME "Termux:Widget"><!ENTITY TERMUX_PROPERTIES_PRIMARY_PATH_SHORT "~/.termux/termux.properties">]>
+<!DOCTYPE resources [<!ENTITY TERMUX_PACKAGE_NAME "com.paseoe"><!ENTITY TERMUX_APP_NAME "ZeroTermux"><!ENTITY TERMUX_API_APP_NAME "Termux:API"><!ENTITY TERMUX_BOOT_APP_NAME "Termux:Boot"><!ENTITY TERMUX_FLOAT_APP_NAME "Termux:Float"><!ENTITY TERMUX_STYLING_APP_NAME "Termux:Styling"><!ENTITY TERMUX_TASKER_APP_NAME "Termux:Tasker"><!ENTITY TERMUX_WIDGET_APP_NAME "Termux:Widget"><!ENTITY TERMUX_PROPERTIES_PRIMARY_PATH_SHORT "~/.termux/termux.properties">]>
 
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="application_name">&TERMUX_APP_NAME;</string>
@@ -1181,6 +1181,7 @@
     <string name="zt_developer">开发/贡献</string>
     <string name="zt_developer_note">hotianbexuanto、Kevin Williams、狂吃不胖没办法、SharpIce 锐冰龙、WINLOG \n小潼(XiaoTong6666)、XINHAO_HAN、Xieansecn等(排名不分先后)</string>
     <string name="zt_install">还原/扩展官方版本</string>
+    <string name="standalone_companion_apps_disabled">独立版已停用旧 ZeroTermux 插件安装器，以免覆盖原有插件。</string>
     <string name="zt_install_float">没有安装此插件！请到【设置 -> 安装/还原Termux官方软件 -> Termux Float】安装插件</string>
     <string name="zt_install_file">没有安装此插件！请到【设置 -> 安装/还原Termux官方软件 -> (Zero)Utermux File Plug】安装插件</string>
     <string name="zt_timer">定时任务</string>
@@ -1447,8 +1448,8 @@
         ln[ \n
         说明：当前目录 内部存储路径 \n
         注意：两个路径都必须是全路径 \n
-        示例：ln /data/data/com.termux/files/home/自定义名称 /sdcard/ \n
-        示例(或指定一个目录)：ln /data/data/com.termux/files/home/自定义名称 /sdcard/自定义目录/ \n
+        示例：ln /data/data/com.paseoe/files/home/自定义名称 /sdcard/ \n
+        示例(或指定一个目录)：ln /data/data/com.paseoe/files/home/自定义名称 /sdcard/自定义目录/ \n
         ] \n
              \n
         \n
@@ -1466,8 +1467,8 @@
         zt backgroundimage(bgi) 图片路径(设置当前终端背景)\n
         backgroundimage(bgi)[\n
         使用帮助(必须全路径):\n
-        zt backgroundimage /data/data/com.termux/files/home/.img/back.jpg \n
-        zt bgi /data/data/com.termux/files/home/.img/back.jpg \n
+        zt backgroundimage /data/data/com.paseoe/files/home/.img/back.jpg \n
+        zt bgi /data/data/com.paseoe/files/home/.img/back.jpg \n
         ]\n
         \n
          zt qr 打开扫一扫 (扫描二维码或者条形码)\n

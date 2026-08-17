@@ -52,7 +52,7 @@ class MainAiSettings : BaseTitleActivity() {
             Intent(
                 this@MainAiSettings,
                 TermuxService::class.java
-            ).setAction("com.termux.service_stop")
+            ).setAction("com.paseoe.service_stop")
             System.exit(0)
             finish()
         }

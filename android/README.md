@@ -6,7 +6,7 @@ ZeroTermux 或 Termux。APK 包含：
 - Termux arm64 bootstrap
 - Node.js 24.18.0
 - Paseo CLI / Server 0.3.1
-- Paseo Enhanced 2.3.0
+- Paseo Enhanced 2.3.1
 - 为 Android arm64 交叉编译的 `node-pty` 和文件监视模块
 
 首次启动会校验 APK 内运行时清单，在应用私有目录离线安装 Node/Paseo，应用增强
@@ -16,19 +16,23 @@ ZeroTermux 或 Termux。APK 包含：
 
 ## 预构建 APK
 
-文件：`releases/PaseoEnhanced-v2.3.0-arm64.apk`
+文件：`releases/PaseoEnhanced-v2.3.1-arm64.apk`
+
+该文件作为 `v2.3.1` GitHub Release 附件发布，也可由本地 release 构建生成；APK
+不纳入 Git 跟踪。
 
 SHA-256：
-`1C28D14C64627D1EF7356421273006963AAFD91706627CC8035463C1B1EBC426`
+`4A662DC44D7773535AA05D213D08CE3CFE11037A21BBF062134DAC8F730B4AED`
 
-应用包名必须保留为 `com.termux`，因为上游代码和 bootstrap 使用该私有目录。安装前
-需要卸载签名不同、同样使用 `com.termux` 的 Termux/ZeroTermux；卸载会清除其应用
-数据，请先自行备份。
+应用包名为 `com.paseoe`，可以直接与原来的 `com.termux` ZeroTermux 共存，不会覆盖
+原应用。Java namespace 仍为 `com.termux`，bootstrap 和内置 Node 运行时已迁移到
+`/data/data/com.paseoe/files/usr`；启动时直接解包已校验的运行时归档，不依赖原应用的
+dpkg 状态。
 
 ## 构建
 
 需要 JDK 21、Android SDK 36、NDK `29.0.14206865`、Node.js 20 或更高版本，
-以及 Gradle 8.13。先验证或重新生成离线运行时：
+以及 Gradle 9.2.1（工程 wrapper 版本）。先验证或重新生成离线运行时：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\prepare-android-runtime.ps1 -ValidateOnly
@@ -54,4 +58,4 @@ subst P: /d
 独立运行时只有 arm64 版本；未传 `-Darch` 时也默认 arm64，其他架构会直接停止构建。
 
 release 产物位于
-`ZeroTermux-main/app/build/outputs/apk/release/ZeroTermux-0.118.3.64-release_arm64-v8a.apk`。
+`ZeroTermux-main/app/build/outputs/apk/release/ZeroTermux-2.3.1-release_arm64-v8a.apk`。

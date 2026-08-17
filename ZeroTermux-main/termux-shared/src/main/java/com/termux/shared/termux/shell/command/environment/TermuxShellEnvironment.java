@@ -76,7 +76,7 @@ public class TermuxShellEnvironment extends AndroidShellEnvironment {
             environment.putAll(termuxApiAppEnvironment);
 
         // Failsafe / repair mode: keep Android system PATH from parent, but start under
-        // /data/data/com.termux/files. Do not set PREFIX or Termux bin PATH.
+        // /data/data/com.paseoe/files. Do not set PREFIX or Termux bin PATH.
         if (isFailSafe) {
             environment.put(ENV_HOME, TermuxConstants.TERMUX_FILES_DIR_PATH);
         } else {

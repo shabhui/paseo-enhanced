@@ -14,10 +14,13 @@ public class PaseoStartupScriptTest {
     public void startupScriptPinsPaseoAndStartsTheWebUi() throws Exception {
         File scriptFile = new File("src/main/assets/paseo-runtime/start-paseo.sh");
         File installerFile = new File("src/main/assets/paseo-runtime/install-bundled-runtime.sh");
+        File termuxRuntimeArchive = new File(
+            "src/main/assets/paseo-runtime/packages/termux-node-runtime-arm64.tgz");
         File runtimePackageFile = new File("../../scripts/android-runtime/package.json");
         File runtimePreparationFile = new File("../../scripts/prepare-android-runtime.ps1");
         assertTrue("startup script is missing", scriptFile.isFile());
         assertTrue("runtime installer is missing", installerFile.isFile());
+        assertTrue("bundled Termux Node runtime is missing", termuxRuntimeArchive.isFile());
         assertTrue("runtime package definition is missing", runtimePackageFile.isFile());
         assertTrue("runtime preparation script is missing", runtimePreparationFile.isFile());
 
@@ -28,11 +31,15 @@ public class PaseoStartupScriptTest {
         assertTrue(runtimePackage.contains("\"@getpaseo/cli\": \"0.3.1\""));
         assertTrue(runtimePreparation.contains("--os=android --cpu=arm64"));
         assertTrue(runtimePreparation.contains("prebuilds\\android-arm64"));
-        assertTrue(installer.contains("dpkg -i"));
+        assertTrue(installer.contains("termux-node-runtime-arm64.tgz"));
+        assertTrue(installer.contains("tar -xzf"));
+        assertFalse(installer.contains("dpkg -i"));
         assertTrue(installer.contains("paseo-node-modules-arm64.tgz"));
         assertFalse(installer.contains("paseo-node-modules-arm64.tar.gz"));
         assertFalse(installer.contains("pkg update"));
         assertFalse(installer.contains("npm install"));
+        assertTrue(runtimePreparation.contains("termux-node-runtime-arm64.tgz"));
+        assertTrue(runtimePreparation.contains("com.paseoe"));
         assertTrue(script.contains("paseo daemon start --port 6767 --web-ui --no-relay"));
         assertTrue(script.contains("node \"$RUNTIME_DIR/enhanced/install.mjs\""));
         assertTrue(script.contains("install-bundled-runtime.sh"));
