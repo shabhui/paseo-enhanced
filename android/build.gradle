@@ -1,0 +1,16 @@
+plugins {
+  id "com.android.application" version "8.7.3"
+}
+
+android {
+  namespace "sh.paseo.providers"
+  compileSdk 35
+
+  defaultConfig {
+    applicationId "sh.paseo.providers"
+    minSdk 24
+    targetSdk 35
+    versionCode 7
+    versionName "2.2.3"
+  }
+}

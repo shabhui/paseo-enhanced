@@ -1,0 +1,14 @@
+{
+  "name": "paseo-enhanced",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node scripts/check.mjs",
+    "install:local": "node install.mjs",
+    "uninstall:local": "node uninstall.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
