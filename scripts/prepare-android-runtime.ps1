@@ -344,7 +344,10 @@ $manifestLines = @(
     "$(Get-Sha256 $termuxArchive)  $termuxArchiveName",
     "$(Get-Sha256 $paseoArchive)  $paseoArchiveName"
 )
-Set-Content -LiteralPath $manifest -Encoding Ascii -Value $manifestLines
+[System.IO.File]::WriteAllText(
+    $manifest,
+    ($manifestLines -join "`n") + "`n",
+    [System.Text.Encoding]::ASCII)
 
 Assert-RuntimePayload
 Write-Host 'Android runtime payload prepared and validated.'

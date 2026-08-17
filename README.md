@@ -66,15 +66,16 @@ npm install -g @getpaseo/cli@0.3.1
 
 ## Android 客户端
 
-独立 arm64 APK 作为 `v2.3.1` GitHub Release 附件发布；本地构建产物位于
-`android/releases/PaseoEnhanced-v2.3.1-arm64.apk`，不纳入 Git 跟踪。它已经内置 Termux
+独立 arm64 APK 作为 `v2.3.2` GitHub Release 附件发布；本地构建产物位于
+`android/releases/PaseoEnhanced-v2.3.2-arm64.apk`，不纳入 Git 跟踪。它已经内置 Termux
 bootstrap、Node.js 24、Paseo CLI 0.3.1、Paseo Enhanced 2.3.1 和 Android arm64
 原生模块，不需要另外安装 ZeroTermux 或 Termux。首次启动会在应用私有目录离线
 安装这些运行文件，启动 Paseo Daemon，等待 `http://127.0.0.1:6767/` 就绪后直接
-打开 Web UI。最低系统版本为 Android 7.0（API 24）。
+打开 Web UI。`v2.3.2` 修复了 Windows 构建生成 CRLF runtime manifest 时首次安装误报
+缺少内置压缩包的问题。最低系统版本为 Android 7.0（API 24）。
 
 APK SHA-256：
-`4A662DC44D7773535AA05D213D08CE3CFE11037A21BBF062134DAC8F730B4AED`
+`3053755F0D62E107A3F85464B51205190A833A478E30A0EA2B4043A7908E2081`
 
 Android 工程位于 `ZeroTermux-main/`，离线运行时准备脚本位于
 `scripts/prepare-android-runtime.ps1`。应用使用独立包名 `com.paseoe`，可以与原来的

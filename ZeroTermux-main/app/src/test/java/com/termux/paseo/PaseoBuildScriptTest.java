@@ -68,11 +68,25 @@ public class PaseoBuildScriptTest {
         assertTrue(buildScript.contains("RELEASE_KEY_ALIAS"));
         assertTrue(buildScript.contains("RELEASE_STORE_PASSWORD"));
         assertTrue(buildScript.contains("RELEASE_KEY_PASSWORD"));
-        assertTrue(buildScript.contains("versionName \"2.3.1\""));
+        assertTrue(buildScript.contains("versionName \"2.3.2\""));
         assertTrue(buildScript.contains("releaseArtifactRequested"));
         assertTrue(buildScript.contains("Release builds require configured signing credentials"));
-        assertFalse(buildScript.contains("?: '123456'"));
-        assertFalse(buildScript.contains("?: '654321'"));
-        assertFalse(buildScript.contains("xrj45yWGLbsO7W0v"));
+        assertFalse(buildScript.matches(
+            "(?s).*System\\.getenv\\(\"RELEASE_STORE_FILE\"\\)\\s*\\?:.*"));
+        assertFalse(buildScript.matches(
+            "(?s).*System\\.getenv\\(\"RELEASE_KEY_ALIAS\"\\)\\s*\\?:.*"));
+        assertFalse(buildScript.matches(
+            "(?s).*System\\.getenv\\(\"RELEASE_STORE_PASSWORD\"\\)\\s*\\?:.*"));
+        assertFalse(buildScript.matches(
+            "(?s).*System\\.getenv\\(\"RELEASE_KEY_PASSWORD\"\\)\\s*\\?:.*"));
+    }
+
+    @Test
+    public void runtimeInstallerHotfixUsesAnUpgradeableVersionCode() throws Exception {
+        File buildFile = new File("build.gradle");
+        String buildScript = new String(
+            Files.readAllBytes(buildFile.toPath()), StandardCharsets.UTF_8);
+
+        assertTrue(buildScript.contains("versionCode 119"));
     }
 }

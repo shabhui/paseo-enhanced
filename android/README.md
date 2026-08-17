@@ -16,13 +16,16 @@ ZeroTermux 或 Termux。APK 包含：
 
 ## 预构建 APK
 
-文件：`releases/PaseoEnhanced-v2.3.1-arm64.apk`
+文件：`releases/PaseoEnhanced-v2.3.2-arm64.apk`
 
-该文件作为 `v2.3.1` GitHub Release 附件发布，也可由本地 release 构建生成；APK
+该文件作为 `v2.3.2` GitHub Release 附件发布，也可由本地 release 构建生成；APK
 不纳入 Git 跟踪。
 
 SHA-256：
-`4A662DC44D7773535AA05D213D08CE3CFE11037A21BBF062134DAC8F730B4AED`
+`3053755F0D62E107A3F85464B51205190A833A478E30A0EA2B4043A7908E2081`
+
+`v2.3.2` 修复 Windows 构建生成 CRLF runtime manifest 时，首次安装错误提示缺少
+`termux-node-runtime-arm64.tgz` 的问题。
 
 应用包名为 `com.paseoe`，可以直接与原来的 `com.termux` ZeroTermux 共存，不会覆盖
 原应用。Java namespace 仍为 `com.termux`，bootstrap 和内置 Node 运行时已迁移到
@@ -46,16 +49,16 @@ Windows 中文工程路径会使 Gradle Test Executor 丢失测试 classpath。�
 ```powershell
 subst P: 'D:\AI项目\paseo-enhanced-main'
 Set-Location P:\ZeroTermux-main
-gradle :app:testDebugUnitTest --tests 'com.termux.paseo.*' -Darch=arm64
+.\gradlew.bat :app:testDebugUnitTest --tests 'com.termux.paseo.*' -Darch=arm64
 $env:RELEASE_STORE_FILE='C:\path\to\paseo-release.jks'
 $env:RELEASE_KEY_ALIAS='your-key-alias'
 $env:RELEASE_STORE_PASSWORD='your-store-password'
 $env:RELEASE_KEY_PASSWORD='your-key-password'
-gradle :app:assembleRelease -Darch=arm64
+.\gradlew.bat :app:assembleRelease -Darch=arm64
 subst P: /d
 ```
 
 独立运行时只有 arm64 版本；未传 `-Darch` 时也默认 arm64，其他架构会直接停止构建。
 
 release 产物位于
-`ZeroTermux-main/app/build/outputs/apk/release/ZeroTermux-2.3.1-release_arm64-v8a.apk`。
+`ZeroTermux-main/app/build/outputs/apk/release/ZeroTermux-2.3.2-release_arm64-v8a.apk`。

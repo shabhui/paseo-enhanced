@@ -5,7 +5,7 @@ APP_DIR="$HOME/.paseo-app"
 MARKER="$APP_DIR/runtime-version"
 RUNTIME_DIR="$APP_DIR/runtime"
 PACKAGES_DIR="$RUNTIME_DIR/packages"
-RUNTIME_VERSION="paseo-0.3.1-arm64-v2"
+RUNTIME_VERSION="paseo-0.3.1-arm64-v3"
 
 if [ "$(cat "$MARKER" 2>/dev/null || true)" = "$RUNTIME_VERSION" ] && command -v node >/dev/null 2>&1 && command -v paseo >/dev/null 2>&1; then
     exit 0
@@ -13,6 +13,7 @@ fi
 
 while read -r expected relative; do
     [ -z "$expected" ] && continue
+    relative="${relative%$'\r'}"
     payload="$PACKAGES_DIR/$relative"
     [ -f "$payload" ] || { echo "Missing bundled runtime payload: $relative" >&2; exit 1; }
     actual="$(sha256sum "$payload" | cut -d ' ' -f 1)"

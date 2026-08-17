@@ -49,4 +49,53 @@ public class PaseoStartupScriptTest {
         assertTrue(script.contains("STATUS_FILE=\"$APP_DIR/status-$RUN_ID\""));
         assertTrue(script.contains("printf '%s\\n%s\\n%s\\n' \"$RUN_ID\" \"$1\" \"$2\""));
     }
+
+    @Test
+    public void runtimeManifestUsesUnixLineEndings() throws Exception {
+        File manifestFile = new File("src/main/assets/paseo-runtime/packages/manifest.txt");
+        File runtimePreparationFile = new File("../../scripts/prepare-android-runtime.ps1");
+
+        String manifest = new String(
+            Files.readAllBytes(manifestFile.toPath()), StandardCharsets.US_ASCII);
+        String runtimePreparation = new String(
+            Files.readAllBytes(runtimePreparationFile.toPath()), StandardCharsets.UTF_8);
+
+        assertFalse("Android shell manifest must not contain carriage returns", manifest.contains("\r"));
+        assertTrue(runtimePreparation.contains("[System.IO.File]::WriteAllText"));
+        assertTrue(runtimePreparation.contains("$manifestLines -join \"`n\""));
+    }
+
+    @Test
+    public void runtimeControlFilesStayLfAfterGitCheckout() throws Exception {
+        File attributesFile = new File("../.gitattributes");
+        String attributes = new String(
+            Files.readAllBytes(attributesFile.toPath()), StandardCharsets.UTF_8);
+
+        assertTrue(attributes.contains(
+            "app/src/main/assets/paseo-runtime/packages/manifest.txt text eol=lf"));
+        assertTrue(attributes.contains(
+            "app/src/main/assets/paseo-runtime/runtime-version text eol=lf"));
+    }
+
+    @Test
+    public void runtimeInstallerDefensivelyStripsCarriageReturns() throws Exception {
+        File installerFile = new File("src/main/assets/paseo-runtime/install-bundled-runtime.sh");
+        String installer = new String(
+            Files.readAllBytes(installerFile.toPath()), StandardCharsets.UTF_8);
+
+        assertTrue(installer.contains("relative=\"${relative%$'\\r'}\""));
+    }
+
+    @Test
+    public void runtimeVersionForcesRepairAfterManifestLineEndingBug() throws Exception {
+        File installerFile = new File("src/main/assets/paseo-runtime/install-bundled-runtime.sh");
+        File runtimeVersionFile = new File("src/main/assets/paseo-runtime/runtime-version");
+        String installer = new String(
+            Files.readAllBytes(installerFile.toPath()), StandardCharsets.UTF_8);
+        String runtimeVersion = new String(
+            Files.readAllBytes(runtimeVersionFile.toPath()), StandardCharsets.UTF_8);
+
+        assertTrue(installer.contains("RUNTIME_VERSION=\"paseo-0.3.1-arm64-v3\""));
+        assertTrue(runtimeVersion.contains("runtime-3"));
+    }
 }

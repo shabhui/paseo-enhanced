@@ -7,3 +7,5 @@
 app/src/main/assets/x11/termux-x11               text eol=lf
 app/src/main/assets/x11/termux-x11-preference     text eol=lf
 app/src/main/assets/x11/termux-x11-preference-zt  text eol=lf
+app/src/main/assets/paseo-runtime/packages/manifest.txt text eol=lf
+app/src/main/assets/paseo-runtime/runtime-version text eol=lf
