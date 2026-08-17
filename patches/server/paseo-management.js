@@ -3,12 +3,14 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { closeAgentCommand } from "./agent/lifecycle-command.js";
-import { importProviderSession } from "./agent/import-sessions.js";
+import { importProviderSession, listImportableProviderSessions } from "./agent/import-sessions.js";
 
 const LOOPBACK_ADDRESSES = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
 const SAFE_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/u;
 const MAX_IMPORT_COUNT = 1000;
 const TRANSCRIPT_PREFIX_BYTES = 512 * 1024;
+const PROVIDER_SCAN_TIMEOUT_MS = 6000;
+const LOCAL_TRANSCRIPT_PROVIDERS = new Set(["codex", "claude"]);
 
 function isLoopbackRequest(req) {
     return LOOPBACK_ADDRESSES.has(req.socket.remoteAddress ?? "");
@@ -47,6 +49,23 @@ async function pathExists(filePath) {
     }
     catch {
         return false;
+    }
+}
+
+async function withDeadline(promise, milliseconds, label) {
+    let timer;
+    try {
+        return await Promise.race([
+            promise,
+            new Promise((_, reject) => {
+                timer = setTimeout(() => reject(new Error(`${label} scan timed out`)), milliseconds);
+                timer.unref?.();
+            }),
+        ]);
+    }
+    finally {
+        if (timer)
+            clearTimeout(timer);
     }
 }
 
@@ -589,11 +608,29 @@ async function listConversations(runtime) {
 
 async function listImportable(runtime) {
     const home = homedir();
-    const [records, codexFiles, archivedCodexFiles, claudeFiles] = await Promise.all([
+    const otherProviders = runtime.providerSnapshotManager.listRegisteredProviderIds()
+        .filter((provider) => !LOCAL_TRANSCRIPT_PROVIDERS.has(provider));
+    const otherProviderScans = otherProviders.map(async (provider) => {
+        try {
+            const result = await withDeadline(listImportableProviderSessions({
+                request: { limit: MAX_IMPORT_COUNT, providers: [provider] },
+                agentManager: runtime.agentManager,
+                agentStorage: runtime.agentStorage,
+                providerSnapshotManager: runtime.providerSnapshotManager,
+            }), PROVIDER_SCAN_TIMEOUT_MS, provider);
+            return result.entries;
+        }
+        catch (error) {
+            runtime.logger?.warn?.({ err: error, provider }, "Skipping slow provider conversation scan");
+            return [];
+        }
+    });
+    const [records, codexFiles, archivedCodexFiles, claudeFiles, otherEntries] = await Promise.all([
         runtime.agentStorage.list(),
         collectJsonlFiles(path.join(home, ".codex", "sessions")),
         collectJsonlFiles(path.join(home, ".codex", "archived_sessions")),
         collectJsonlFiles(path.join(home, ".claude", "projects")),
+        Promise.all(otherProviderScans),
     ]);
     const importedHandles = new Set();
     for (const record of records) {
@@ -605,10 +642,10 @@ async function listImportable(runtime) {
         }
     }
     const codexPaths = [...new Set([...codexFiles, ...archivedCodexFiles])];
-    const descriptors = (await Promise.all([
+    const descriptors = [...otherEntries.flat(), ...(await Promise.all([
         ...codexPaths.map(parseCodexTranscript),
         ...claudeFiles.map(parseClaudeTranscript),
-    ])).filter(Boolean);
+    ])).filter(Boolean)];
     const unique = new Map();
     for (const entry of descriptors) {
         if (importedHandles.has(entry.providerHandleId))

@@ -61,7 +61,7 @@
   async function loadImportableCount() {
     if (importableRequest) return importableRequest;
     var button = $("pm-import-all"), controller = typeof AbortController === "function" ? new AbortController() : null;
-    var timeout = controller ? window.setTimeout(function () { controller.abort(); }, 8000) : null;
+    var timeout = controller ? window.setTimeout(function () { controller.abort(); }, 10000) : null;
     button.textContent = "正在扫描可导入对话…"; button.disabled = true;
     importableRequest = (async function () {
       try { var data = await manager("importable", null, null, controller && controller.signal); state.importable = data.count || 0; button.textContent = "一键导入全部（" + state.importable + "）"; }
