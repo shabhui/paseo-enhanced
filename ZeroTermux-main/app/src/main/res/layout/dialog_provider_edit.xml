@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/ai_provider_name"
+        android:textColor="@color/md_grey_500"
+        android:textSize="12sp"
+        android:layout_marginBottom="4dp"/>
+
+    <EditText
+        android:id="@+id/provider_name"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:textColor="@color/white"
+        android:textSize="14sp"
+        android:textColorHint="@color/md_grey_500"
+        android:hint="@string/ai_provider_name_hint"
+        android:background="@null"
+        android:inputType="text"
+        android:singleLine="true"
+        android:paddingLeft="8dp"/>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#33ffffff"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="12dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/ai_provider_format"
+        android:textColor="@color/md_grey_500"
+        android:textSize="12sp"
+        android:layout_marginBottom="4dp"/>
+
+    <Spinner
+        android:id="@+id/provider_format_spinner"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:background="@null"
+        android:paddingLeft="4dp"/>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#33ffffff"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="12dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/ai_provider_url"
+        android:textColor="@color/md_grey_500"
+        android:textSize="12sp"
+        android:layout_marginBottom="4dp"/>
+
+    <EditText
+        android:id="@+id/provider_url"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:textColor="@color/white"
+        android:textSize="14sp"
+        android:textColorHint="@color/md_grey_500"
+        android:hint="@string/ai_provider_url_hint"
+        android:background="@null"
+        android:inputType="textUri"
+        android:singleLine="true"
+        android:paddingLeft="8dp"/>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#33ffffff"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="12dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/ai_provider_key"
+        android:textColor="@color/md_grey_500"
+        android:textSize="12sp"
+        android:layout_marginBottom="4dp"/>
+
+    <EditText
+        android:id="@+id/provider_key"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:textColor="@color/white"
+        android:textSize="14sp"
+        android:textColorHint="@color/md_grey_500"
+        android:hint="@string/ai_provider_key_hint"
+        android:text=""
+        android:background="@null"
+        android:singleLine="true"
+        android:paddingLeft="8dp"/>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#33ffffff"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="12dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/ai_provider_model"
+        android:textColor="@color/md_grey_500"
+        android:textSize="12sp"
+        android:layout_marginBottom="4dp"/>
+
+    <EditText
+        android:id="@+id/provider_model"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:textColor="@color/white"
+        android:textSize="14sp"
+        android:textColorHint="@color/md_grey_500"
+        android:hint="@string/ai_provider_model_hint"
+        android:background="@null"
+        android:inputType="text"
+        android:text=""
+        android:singleLine="true"
+        android:paddingLeft="8dp"/>
+
+</LinearLayout>

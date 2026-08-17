@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:background="@color/color_2b2b2b"
+    android:layout_height="match_parent">
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_margin="3dp"
+        app:cardCornerRadius="3dp"
+        app:cardElevation="0dp"
+        app:cardBackgroundColor="@color/color_55000000"
+        android:layout_height="60dp">
+        <RelativeLayout
+            android:layout_width="match_parent"
+
+            android:layout_height="match_parent">
+
+            <TextView
+                android:id="@+id/title"
+                android:layout_width="wrap_content"
+                android:layout_centerVertical="true"
+                android:layout_centerHorizontal="true"
+                android:text="title"
+                android:textSize="17sp"
+                android:textColor="@color/white"
+                android:layout_height="wrap_content"/>
+
+            <ImageView
+                android:id="@+id/cancel"
+                android:layout_width="30dp"
+                android:src="@mipmap/up_dialog"
+                android:padding="6dp"
+                android:rotation="270"
+                android:layout_centerVertical="true"
+                android:layout_marginLeft="5dp"
+                android:layout_height="30dp"/>
+
+        </RelativeLayout>
+    </androidx.cardview.widget.CardView>
+    <FrameLayout
+        android:id="@+id/base_frame"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+</LinearLayout>

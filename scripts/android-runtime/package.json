@@ -1,0 +1,8 @@
+{
+  "name": "paseo-android-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@getpaseo/cli": "0.3.1"
+  }
+}

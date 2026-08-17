@@ -2,6 +2,9 @@
 *.keystore
 *.jks
 *.idsig
+/build/
+/data/
+/docs/superpowers/
 android/build/
+/android/releases/*.apk
 node_modules/
-

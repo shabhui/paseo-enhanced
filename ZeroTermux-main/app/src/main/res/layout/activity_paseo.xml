@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/paseo_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#101514">
+
+    <LinearLayout
+        android:id="@+id/paseo_startup_panel"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="28dp">
+
+        <TextView
+            android:id="@+id/paseo_brand"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Paseo"
+            android:textColor="#F1F5F3"
+            android:textSize="34sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/paseo_subtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="Enhanced"
+            android:textColor="#75D1AA"
+            android:textSize="16sp" />
+
+        <ProgressBar
+            android:id="@+id/paseo_progress"
+            style="?android:attr/progressBarStyleLarge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="44dp"
+            android:indeterminateTint="#75D1AA" />
+
+        <TextView
+            android:id="@+id/paseo_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:gravity="center"
+            android:text="Preparing the embedded terminal"
+            android:textColor="#C7D2CE"
+            android:textSize="15sp" />
+
+        <LinearLayout
+            android:id="@+id/paseo_actions"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:orientation="horizontal"
+            android:visibility="gone">
+
+            <Button
+                android:id="@+id/paseo_retry"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Retry" />
+
+            <Button
+                android:id="@+id/paseo_terminal"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:text="Open terminal" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <WebView
+        android:id="@+id/paseo_webview"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+</FrameLayout>

@@ -1,0 +1,354 @@
+package com.termux.zerocore.ai.agent
+
+import com.example.xh_lib.utils.LogUtils
+import com.example.xh_lib.utils.UUtils
+import com.termux.R
+import com.termux.zerocore.ai.config.ZtAiStrings
+import com.termux.zerocore.utils.ZtLocaleStrings
+import org.json.JSONObject
+
+class ZtAgentAiAgentRunner(
+    private val client: ZtAgentAiChatClient,
+    private val terminalEnabled: Boolean,
+    private val ztControlEnabled: Boolean,
+    private val filesystemEnabled: Boolean = false
+) {
+    interface Callback {
+        fun onToolStep(label: String, detail: String)
+        /** 工具调用轮次进度：current 为已执行轮数，max 为设置中的上限。 */
+        fun onToolRoundProgress(current: Int, max: Int) {}
+        fun onComplete(content: String)
+        fun onError(message: String)
+        fun isCancelled(): Boolean
+    }
+
+    @Volatile
+    private var worker: Thread? = null
+
+    fun cancel() {
+        worker?.interrupt()
+        worker = null
+    }
+
+    fun run(history: List<ZtAgentAiChatClient.ChatMessage>, callback: Callback) {
+        cancel()
+        val thread = Thread {
+            try {
+                runInternal(history, callback)
+            } catch (e: InterruptedException) {
+                LogUtils.e(TAG, "agent interrupted")
+            } catch (e: Exception) {
+                LogUtils.e(TAG, "agent error: $e")
+                if (!callback.isCancelled()) {
+                    post { callback.onError(e.message ?: "Agent error") }
+                }
+            }
+        }
+        worker = thread
+        thread.start()
+    }
+
+    private fun runInternal(
+        history: List<ZtAgentAiChatClient.ChatMessage>,
+        callback: Callback
+    ) {
+        val workingMessages = buildWorkingMessages(history)
+        val tools = if (ZtAgentAiConfigHelper.shouldUseAgentRunner()) {
+            ZtAgentAiTools.definitions(terminalEnabled, ztControlEnabled, filesystemEnabled)
+        } else {
+            null
+        }
+        var rounds = 0
+        val maxToolRounds = ZtAgentAiConfigHelper.maxToolRounds()
+        post { callback.onToolRoundProgress(0, maxToolRounds) }
+        while (rounds < maxToolRounds) {
+            if (callback.isCancelled()) return
+            if (terminalEnabled) {
+                appendFreshTerminalSnapshot(workingMessages)
+            }
+            val result = client.chatCompletionSync(workingMessages, tools)
+            if (callback.isCancelled()) return
+            if (result.error != null) {
+                post {
+                    if (!callback.isCancelled()) {
+                        callback.onError(result.error)
+                    }
+                }
+                return
+            }
+            if (result.toolCalls.isNotEmpty()) {
+                rounds++
+                post { callback.onToolRoundProgress(rounds, maxToolRounds) }
+                workingMessages.add(
+                    ZtAgentAiChatClient.ChatMessage(
+                        role = ROLE_ASSISTANT,
+                        content = result.content,
+                        toolCalls = result.toolCalls
+                    )
+                )
+                for (toolCall in result.toolCalls) {
+                    if (callback.isCancelled()) return
+                    executeToolCallWithUi(toolCall, callback, workingMessages)
+                }
+                continue
+            }
+            val reply = result.content?.trim().orEmpty()
+            post {
+                if (!callback.isCancelled()) {
+                    callback.onComplete(reply)
+                }
+            }
+            return
+        }
+        post {
+            if (callback.isCancelled()) return@post
+            callback.onError(
+                ZtLocaleStrings.format(
+                    R.string.zt_agent_ai_tool_limit,
+                    maxToolRounds
+                )
+            )
+        }
+    }
+
+    private fun appendFreshTerminalSnapshot(messages: MutableList<ZtAgentAiChatClient.ChatMessage>) {
+        messages.removeAll { it.role == ROLE_SYSTEM && it.content?.startsWith(SNAPSHOT_PREFIX) == true }
+        messages.add(
+            ZtAgentAiChatClient.ChatMessage(
+                role = ROLE_SYSTEM,
+                content = ZtAgentAiTerminalExecutor.captureSnapshot(3000)
+            )
+        )
+    }
+
+    private fun executeToolCallWithUi(
+        toolCall: ZtAgentAiChatClient.ToolCall,
+        callback: Callback,
+        workingMessages: MutableList<ZtAgentAiChatClient.ChatMessage>
+    ) {
+        val label = ZtAgentAiToolExecutor.statusLabel(toolCall.name)
+        val preview = toolCallPreview(toolCall)
+        val toolResult = ZtAgentAiToolExecutor.execute(
+            toolCall,
+            terminalEnabled,
+            ztControlEnabled,
+            filesystemEnabled
+        )
+        android.util.Log.i(TAG, "tool ${toolCall.name} result=$toolResult")
+
+        when (toolCall.name) {
+            "send_terminal_command", "run_zt_command" -> {
+                post { callback.onToolStep(label, preview) }
+                post {
+                    callback.onToolStep(
+                        ZtLocaleStrings.getString(R.string.zt_agent_ai_tool_read_after_send),
+                        ""
+                    )
+                }
+            }
+            "read_terminal", "send_terminal_key" -> {
+                post { callback.onToolStep(label, preview) }
+            }
+            else -> {
+                val detail = when {
+                    preview.isNotBlank() && toolResult.isNotBlank() -> "$preview\n\n$toolResult"
+                    toolResult.isNotBlank() -> toolResult
+                    else -> preview
+                }
+                post { callback.onToolStep(label, detail) }
+            }
+        }
+
+        workingMessages.add(
+            ZtAgentAiChatClient.ChatMessage(
+                role = ROLE_TOOL,
+                content = toolResult,
+                toolCallId = toolCall.id
+            )
+        )
+    }
+
+    private fun toolCallPreview(toolCall: ZtAgentAiChatClient.ToolCall): String {
+        return try {
+            val args = JSONObject(toolCall.arguments.ifBlank { "{}" })
+            when (toolCall.name) {
+                "send_terminal_command" -> {
+                    val cmd = args.optString("command", "").trim()
+                    if (cmd.isEmpty()) "" else "→ $cmd"
+                }
+                "send_terminal_key" -> args.optString("key", "").trim()
+                "run_zt_command" -> {
+                    val cmd = args.optString("command", "").trim()
+                    if (cmd.isEmpty()) "" else "→ zt $cmd"
+                }
+                "run_zerotermux_zt" -> {
+                    val cmd = args.optString("command", "").trim()
+                    if (cmd.isEmpty()) "" else "→ zt $cmd"
+                }
+                "set_zerotermux_config" -> {
+                    val key = args.optString("key", "").trim()
+                    val value = args.optString("value", "").trim()
+                    if (key.isEmpty()) "" else "→ $key = $value"
+                }
+                "open_zerotermux_page" -> {
+                    val page = args.optString("page_id", "").trim()
+                    if (page.isEmpty()) "→ list pages" else "→ open $page"
+                }
+                "list_zerotermux_capabilities" -> {
+                    val cat = args.optString("category", "all").trim()
+                    "→ list $cat"
+                }
+                "get_zerotermux_config" -> {
+                    val group = args.optString("group", "").trim()
+                    if (group.isEmpty()) "→ read config" else "→ read $group"
+                }
+                "get_zerotermux_left_menu" -> "→ read left menu xml"
+                "update_zerotermux_left_menu" -> {
+                    val pkg = args.optString("create_menu_package", args.optString("create_tab_name", "")).trim()
+                    when {
+                        pkg.isNotEmpty() -> "→ Menu 菜单: $pkg"
+                        args.optString("append_group_xml", "").isNotBlank() -> "→ edit AI menu package"
+                        args.optString("xml_content", "").isNotBlank() -> "→ replace AI menu xml"
+                        else -> "→ update Menu 菜单"
+                    }
+                }
+                "list_zerotermux_pkg_sources" -> "→ list APT mirrors"
+                "switch_zerotermux_pkg_source" -> {
+                    val id = args.optString("source_id", "").trim()
+                    if (id.isEmpty()) "→ switch APT source" else "→ switch to $id"
+                }
+                "list_zerotermux_containers" -> "→ list containers"
+                "create_zerotermux_container" -> {
+                    val name = args.optString("container_name", args.optString("name", "")).trim()
+                    if (name.isEmpty()) "→ create container" else "→ create $name"
+                }
+                "switch_zerotermux_container" -> {
+                    val id = args.optString("container_id", args.optString("container_name", "")).trim()
+                    if (id.isEmpty()) "→ switch container" else "→ switch to $id"
+                }
+                "delete_zerotermux_container" -> {
+                    val id = args.optString("container_id", args.optString("container_name", "")).trim()
+                    if (id.isEmpty()) "→ delete container" else "→ delete $id"
+                }
+                "list_zerotermux_command_defs" -> "→ list command defs"
+                "add_zerotermux_command_def" -> {
+                    val name = args.optString("name", "").trim()
+                    if (name.isEmpty()) "→ add command def" else "→ add $name"
+                }
+                "update_zerotermux_command_def" -> "→ update command def"
+                "delete_zerotermux_command_def" -> "→ delete command def"
+                "run_zerotermux_command_def" -> "→ run command def"
+                "list_directory" -> {
+                    val path = args.optString("path", "").trim()
+                    if (path.isEmpty()) "→ list ~" else "→ list $path"
+                }
+                "read_file" -> {
+                    val path = args.optString("path", "").trim()
+                    if (path.isEmpty()) "→ read file" else "→ read $path"
+                }
+                "write_file" -> {
+                    val path = args.optString("path", "").trim()
+                    if (path.isEmpty()) "→ write file" else "→ write $path"
+                }
+                "create_file" -> {
+                    val path = args.optString("path", "").trim()
+                    if (path.isEmpty()) "→ create file" else "→ create $path"
+                }
+                "mkdir" -> {
+                    val path = args.optString("path", "").trim()
+                    if (path.isEmpty()) "→ mkdir" else "→ mkdir $path"
+                }
+                "delete_path" -> {
+                    val path = args.optString("path", "").trim()
+                    if (path.isEmpty()) "→ delete" else "→ delete $path"
+                }
+                "stat_path" -> {
+                    val path = args.optString("path", "").trim()
+                    if (path.isEmpty()) "→ stat" else "→ stat $path"
+                }
+                "list_agent_skills" -> "→ list ~/.skill"
+                "save_agent_skill" -> {
+                    val id = args.optString("skill_id", "").trim()
+                    if (id.isEmpty()) "→ save skill" else "→ save skill $id"
+                }
+                else -> ""
+            }
+        } catch (_: Exception) {
+            ""
+        }
+    }
+
+    private fun buildWorkingMessages(
+        history: List<ZtAgentAiChatClient.ChatMessage>
+    ): MutableList<ZtAgentAiChatClient.ChatMessage> {
+        val config = ZtAgentAiConfigHelper.loadActiveConfig()
+        val list = mutableListOf<ZtAgentAiChatClient.ChatMessage>()
+        list.add(
+            ZtAgentAiChatClient.ChatMessage(
+                role = ROLE_SYSTEM,
+                content = ZtAgentAiConfigHelper.resolveSystemPrompt(
+                    config.systemPrompt,
+                    terminalEnabled,
+                    ztControlEnabled,
+                    filesystemEnabled
+                )
+            )
+        )
+
+        val historyMessages = history.filter { it.role == ROLE_USER || it.role == ROLE_ASSISTANT }
+        val limited = if (terminalEnabled) {
+            historyMessages.takeLast(TERMINAL_HISTORY_LIMIT)
+        } else {
+            historyMessages
+        }
+
+        if (terminalEnabled && limited.isNotEmpty()) {
+            list.add(
+                ZtAgentAiChatClient.ChatMessage(
+                    role = ROLE_SYSTEM,
+                    content = ZtAiStrings.terminalHistoryNotice()
+                )
+            )
+            val lastUserIndex = limited.indexOfLast { it.role == ROLE_USER }
+            limited.forEachIndexed { index, message ->
+                if (message.role == ROLE_USER) {
+                    val snapshot = if (index == lastUserIndex) {
+                        ZtAgentAiTerminalExecutor.captureSnapshot(3000)
+                    } else {
+                        message.terminalSnapshot
+                    }
+                    list.add(
+                        ZtAgentAiChatClient.ChatMessage(
+                            role = ROLE_USER,
+                            content = ZtAgentAiChatStore.contentWithSnapshot(
+                                message.content.orEmpty(),
+                                snapshot
+                            )
+                        )
+                    )
+                } else {
+                    list.add(message)
+                }
+            }
+        } else {
+            list.addAll(limited)
+        }
+
+        return list
+    }
+
+    private fun post(block: () -> Unit) {
+        UUtils.getHandler().post { block() }
+    }
+
+    companion object {
+        private const val TAG = "ZtAgentAiAgentRunner"
+        private const val TERMINAL_HISTORY_LIMIT = 6
+        private val SNAPSHOT_PREFIX: String
+            get() = ZtAiStrings.terminalSnapshotPrefix()
+        private const val ROLE_SYSTEM = "system"
+        private const val ROLE_USER = "user"
+        private const val ROLE_ASSISTANT = "assistant"
+        private const val ROLE_TOOL = "tool"
+    }
+}

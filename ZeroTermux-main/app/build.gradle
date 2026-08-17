@@ -1,0 +1,435 @@
+plugins {
+    id "com.android.application"
+
+}
+
+def releaseStoreFile = System.getenv("RELEASE_STORE_FILE")
+def releaseKeyAlias = System.getenv("RELEASE_KEY_ALIAS")
+def releaseStorePassword = System.getenv("RELEASE_STORE_PASSWORD")
+def releaseKeyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+def releaseSigningValues = [releaseStoreFile, releaseKeyAlias, releaseStorePassword, releaseKeyPassword]
+def releaseSigningConfigured = releaseSigningValues.every { it != null && !it.trim().isEmpty() }
+if (!releaseSigningConfigured && releaseSigningValues.any { it != null && !it.trim().isEmpty() }) {
+    throw new GradleException("Release signing requires RELEASE_STORE_FILE, RELEASE_KEY_ALIAS, RELEASE_STORE_PASSWORD, and RELEASE_KEY_PASSWORD")
+}
+
+// ZeroTermux add {@
+apply plugin: 'kotlin-android'
+// @}
+ext {
+    // The packageVariant defines the bootstrap variant that will be included in the app APK.
+    // This must be supported by com.termux.shared.termux.TermuxBootstrap.PackageVariant or app will
+    // crash at startup.
+    // Bootstrap of a different variant must not be manually installed by the user after app installation
+    // by replacing $PREFIX since app code is dependant on the variant used to build the APK.
+    // Currently supported values are: [ "apt-android-7" "apt-android-5" ]
+    packageVariant = System.getenv("TERMUX_PACKAGE_VARIANT") ?: "apt-android-7" // Default: "apt-android-7"
+}
+
+android {
+    namespace "com.termux"
+
+    compileSdkVersion project.properties.compileSdkVersion.toInteger()
+    ndkVersion = System.getenv("JITPACK_NDK_VERSION") ?: project.properties.ndkVersion
+    def appVersionName = System.getenv("TERMUX_APP_VERSION_NAME") ?: ""
+    def apkVersionTag = System.getenv("TERMUX_APK_VERSION_TAG") ?: ""
+    dependencies {
+        implementation "androidx.annotation:annotation:1.9.0"
+        implementation "androidx.core:core:1.13.1"
+        implementation "androidx.drawerlayout:drawerlayout:1.2.0"
+        implementation "androidx.preference:preference:1.2.1"
+        implementation "androidx.viewpager:viewpager:1.0.0"
+        implementation "com.google.android.material:material:1.12.0"
+        implementation "com.google.guava:guava:24.1-jre"
+        implementation "io.noties.markwon:core:$markwonVersion"
+        implementation "io.noties.markwon:ext-strikethrough:$markwonVersion"
+        implementation "io.noties.markwon:ext-tables:$markwonVersion"
+        implementation "io.noties.markwon:linkify:$markwonVersion"
+        implementation "io.noties.markwon:recycler:$markwonVersion"
+        implementation 'com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava'
+
+        implementation project(":terminal-view")
+        implementation project(":termux-shared")
+        //ZeroTermux {@
+        def libsuVersion = '5.2.1'
+        implementation fileTree(include: ['*.jar', '*.aar'], dir: 'libs')
+        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+        implementation('cn.hotapk:fastandrutils:0.8.0') {
+            exclude group: 'com.android.support'
+        }
+        implementation "com.google.android.material:material:1.12.0"
+        implementation "com.google.guava:guava:31.0.1-jre"
+        implementation 'com.google.code.gson:gson:2.8.6'
+        //网络框架
+        implementation 'com.lzy.net:okgo:3.0.4'
+        //switch Btn
+        implementation 'com.github.iielse:switchbutton:1.0.4'
+
+        implementation 'com.github.getActivity:XXPermissions:11.5'
+        implementation 'com.daimajia.numberprogressbar:library:1.4@aar'
+
+        implementation 'me.laoyuyu.aria:core:3.8.16'
+        annotationProcessor 'me.laoyuyu.aria:compiler:3.8.16'
+
+        // The core module that provides APIs to a shell
+        implementation "com.github.topjohnwu.libsu:core:${libsuVersion}"
+        // Optional: APIs for creating root services. Depends on ":core"
+        implementation "com.github.topjohnwu.libsu:service:${libsuVersion}"
+        // Optional: Provides remote file system support
+        implementation "com.github.topjohnwu.libsu:nio:${libsuVersion}"
+        // debugImplementation 'com.github.getActivity:Logcat:9.6'
+        implementation 'com.scottyab:rootbeer-lib:0.1.0'
+        //OTG0
+        implementation 'me.jahnen:libaums:0.8.0'
+        implementation 'me.jahnen:libaums-httpserver:0.5.3'
+        implementation 'me.jahnen:libaums-storageprovider:0.5.1'
+        implementation 'uk.co.alt236:usbdeviceenumerator:2.0.0'
+        //webview框架
+        implementation 'com.just.agentweb:agentweb:4.0.2'
+        implementation 'com.just.agentweb:download:4.0.2'
+        //颜色取色器
+        implementation 'com.github.rtugeek:colorseekbar:2.0.3'
+        //图片/视频选择器
+        implementation 'com.lcw.library:imagepicker:2.2.7'
+        //滑动器
+        implementation 'com.billy.android:smart-swipe:1.1.0'
+//compat for android support library
+        implementation 'com.billy.android:smart-swipe-x:1.1.0'
+        //glide
+        implementation 'com.github.bumptech.glide:glide:4.10.0'
+        annotationProcessor 'com.github.bumptech.glide:compiler:4.10.0'
+        //状态栏
+        //https://github.com/gyf-dev/ImmersionBar
+        implementation 'com.geyifeng.immersionbar:immersionbar:3.2.2'
+        // 线性背景
+        implementation 'com.googlecode.plist:dd-plist:1.16'
+        implementation 'com.tananaev:adblib:1.3'
+        implementation 'org.samba.jcifs:jcifs:1.3.3'
+        implementation group: 'commons-fileupload', name: 'commons-fileupload', version: '1.3.1'
+        implementation 'org.nanohttpd:nanohttpd:2.3.1'
+        implementation 'org.nanohttpd:nanohttpd-websocket:2.3.1'
+        api group: 'javax.servlet', name: 'servlet-api', version: '2.5'
+        implementation 'com.hzy:un7zip:+'
+
+        //ZFlie
+        implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
+
+        //Avnc
+        implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:2.5.1"
+        // 二维码
+        implementation 'com.google.zxing:core:3.5.3'
+        // deepseek
+        implementation 'com.squareup.okhttp3:okhttp:4.9.3'
+
+        implementation 'com.mallotec.reb:plugin-locale:1.0.12'
+
+        implementation 'org.jsoup:jsoup:1.22.1'
+        // @}
+//        implementation project(":FHttpServer")
+        //       implementation project(":z_file")
+    }
+
+    defaultConfig {
+        minSdkVersion project.properties.minSdkVersion.toInteger()
+        targetSdkVersion project.properties.targetSdkVersion.toInteger()
+        // ZeroTermux modify {@
+        // versionCode 118
+        // versionName "0.118.0"
+        versionCode 118
+        versionName "0.118.3.64"
+        // @}
+        if (appVersionName) versionName = appVersionName
+        validateVersionName(versionName)
+
+        buildConfigField "String", "TERMUX_PACKAGE_VARIANT", "\"" + project.ext.packageVariant + "\""
+        // Used by TermuxApplication class
+
+        manifestPlaceholders.TERMUX_PACKAGE_NAME = "com.termux"
+        manifestPlaceholders.TERMUX_APP_NAME = "Termux"
+        manifestPlaceholders.TERMUX_API_APP_NAME = "Termux:API"
+        manifestPlaceholders.TERMUX_BOOT_APP_NAME = "Termux:Boot"
+        manifestPlaceholders.TERMUX_FLOAT_APP_NAME = "Termux:Float"
+        manifestPlaceholders.TERMUX_STYLING_APP_NAME = "Termux:Styling"
+        manifestPlaceholders.TERMUX_TASKER_APP_NAME = "Termux:Tasker"
+        manifestPlaceholders.TERMUX_WIDGET_APP_NAME = "Termux:Widget"
+
+        externalNativeBuild {
+            ndkBuild {
+                cFlags "-std=c11", "-Wall", "-Wextra", "-Werror", "-Os", "-fno-stack-protector", "-Wl,--gc-sections"
+            }
+        }
+    }
+
+    // ZeroTermux add {@
+    // 通过 -Darch={arm|arm64|x86|x86_64|all} 控制构建架构，默认all生成通用APK
+
+    def buildArch = System.getProperty("arch", "arm64")
+    if (buildArch != "arm64") {
+        throw new GradleException("Standalone Paseo supports only -Darch=arm64")
+    }
+    splits {
+        abi {
+            enable true
+            reset()
+            include "arm64-v8a"
+        }
+    }
+    // 添加 Kotlin 编译选项
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+    buildFeatures {
+        dataBinding true
+        buildConfig true
+    }
+    // @}
+
+
+    signingConfigs {
+        if (releaseSigningConfigured) {
+            release {
+                storeFile file(releaseStoreFile)
+                keyAlias releaseKeyAlias
+                storePassword releaseStorePassword
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
+
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources false // Reproducible builds
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (releaseSigningConfigured) signingConfig signingConfigs.release
+        }
+
+        debug { }
+    }
+
+    compileOptions {
+        // Flag to enable support for the new language APIs
+        coreLibraryDesugaringEnabled true
+        // ZeroTermux modify {@
+        // sourceCompatibility JavaVersion.VERSION_1_8
+        // targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+        // @}
+    }
+
+    externalNativeBuild {
+        ndkBuild {
+            path "src/main/cpp/Android.mk"
+        }
+    }
+
+    lint {
+        disable 'ProtectedPermissions'
+    }
+
+    testOptions {
+        unitTests {
+            includeAndroidResources = true
+        }
+    }
+
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging true
+        }
+        //ZeroTermux add {@
+        // 排除重复的 META-INF 文件
+        exclude 'META-INF/DEPENDENCIES'
+        exclude 'META-INF/NOTICE'
+        exclude 'META-INF/LICENSE'
+        exclude 'META-INF/LICENSE.txt'
+        exclude 'META-INF/NOTICE.txt'
+        exclude 'META-INF/INDEX.LIST'
+        exclude 'META-INF/io.netty.versions.properties'
+        exclude 'META-INF/services/javax.annotation.processing.Processor'
+        // @}
+    }
+
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            if (variant.buildType.name == "debug") {
+                def abi = output.getFilter(com.android.build.OutputFile.ABI)
+                //outputFileName = new File("termux-app_" + (apkVersionTag ? apkVersionTag : project.ext.packageVariant + "-" + "debug") + "_" + (abi ? abi : "universal") + ".apk")
+                outputFileName = new File("ZeroTermux-" + (versionName + "-" + "debug") + "_" + (abi ? abi : "universal") + ".apk")
+            } else if (variant.buildType.name == "release") {
+                def abi = output.getFilter(com.android.build.OutputFile.ABI)
+                //outputFileName = new File("termux-app_" + (apkVersionTag ? apkVersionTag : project.ext.packageVariant + "-" + "release") + "_" + (abi ? abi : "universal") + ".apk")
+                outputFileName = new File("ZeroTermux-" + (versionName + "-" + "release") + "_" + (abi ? abi : "universal") + ".apk")
+            }
+        }
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+}
+
+def paseoAssetsDir = file("$buildDir/generated/paseo-assets")
+def stagePaseoEnhancedAssets = tasks.register("stagePaseoEnhancedAssets", Sync) {
+    into(new File(paseoAssetsDir, "paseo-runtime/enhanced"))
+    from(rootProject.projectDir.parentFile) {
+        include "install.mjs", "uninstall.mjs", "package.json"
+        include "patches/**", "scripts/**", "web/**"
+    }
+}
+
+android.sourceSets.main.assets.srcDir(paseoAssetsDir)
+tasks.named("preBuild").configure { dependsOn(stagePaseoEnhancedAssets) }
+
+dependencies {
+    testImplementation "junit:junit:4.13.2"
+    testImplementation "org.robolectric:robolectric:4.10"
+    // ZeroTermux delete {@
+    // coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:1.1.5"
+    //
+    // ZeroTermux add {@
+    // 语法编辑器
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
+    implementation 'io.github.rosemoe:editor:0.24.4'
+    implementation 'io.github.rosemoe:language-textmate:0.24.4'
+
+    implementation 'androidx.cardview:cardview:1.0.0'
+//    implementation project(path: ':xh_lib')
+    implementation 'androidx.appcompat:appcompat:1.2.0'
+    implementation 'com.google.android.material:material:1.2.1'
+    implementation 'androidx.constraintlayout:constraintlayout:2.0.1'
+    implementation files('libs/commons-logging-1.2.jar')
+    implementation files('libs/commons-net-3.8.0.jar')
+    implementation files('libs/ftplet-api-1.1.1.jar')
+    implementation files('libs/ftpserver-core-1.1.1-edited.jar')
+    implementation files('libs/jlan-5.jar')
+    implementation files('libs/log4j-1.2.17.jar')
+    implementation files('libs/mina-core-2.0.16.jar')
+    implementation files('libs/slf4j-api-1.7.21.jar')
+    implementation files('libs/slf4j-log4j12-1.7.21.jar')
+    implementation files('libs/commons-codec-1.10-rep.jar')
+    def room_version = "2.6.1"  // 使用稳定的版本
+    implementation "androidx.room:room-runtime:$room_version"
+    implementation "androidx.room:room-ktx:$room_version"  // Kotlin 扩展
+    implementation "androidx.biometric:biometric-ktx:1.2.0-alpha05"
+    // @}
+}
+
+task versionName {
+    doLast {
+        print android.defaultConfig.versionName
+    }
+}
+
+def validateVersionName(String versionName) {
+    // https://semver.org/spec/v2.0.0.html#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
+    // ^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$
+    // ZeroTermux delete {@
+    //if (!java.util.regex.Pattern.matches("^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?\$", versionName))
+    //    throw new GradleException("The versionName '" + versionName + "' is not a valid version as per semantic version '2.0.0' spec in the format 'major.minor.patch(-prerelease)(+buildmetadata)'. https://semver.org/spec/v2.0.0.html.")
+    // @}
+}
+
+def downloadBootstrap(String arch, String expectedChecksum, String version) {
+    def digest = java.security.MessageDigest.getInstance("SHA-256")
+
+    def localUrl = "src/main/cpp/bootstrap-" + arch + ".zip"
+    def file = new File(projectDir, localUrl)
+    if (file.exists()) {
+        def buffer = new byte[8192]
+        def input = new FileInputStream(file)
+        while (true) {
+            def readBytes = input.read(buffer)
+            if (readBytes < 0) break
+            digest.update(buffer, 0, readBytes)
+        }
+        def checksum = new BigInteger(1, digest.digest()).toString(16)
+        while (checksum.length() < 64) {
+            checksum = "0" + checksum
+        }
+        if (checksum == expectedChecksum) {
+            return
+        } else {
+            logger.quiet("Deleting old local file with wrong hash: " + localUrl + ": expected: " + expectedChecksum + ", actual: " + checksum)
+            file.delete()
+        }
+    }
+
+    def remoteUrl = "https://github.com/termux/termux-packages/releases/download/bootstrap-" + version + "/bootstrap-" + arch + ".zip"
+    logger.quiet("Downloading " + remoteUrl + " ...")
+
+    file.parentFile.mkdirs()
+    def out = new BufferedOutputStream(new FileOutputStream(file))
+
+    def connection = new URL(remoteUrl).openConnection()
+    connection.setInstanceFollowRedirects(true)
+    def digestStream = new java.security.DigestInputStream(connection.inputStream, digest)
+    out << digestStream
+    out.close()
+
+    def checksum = new BigInteger(1, digest.digest()).toString(16)
+    while (checksum.length() < 64) {
+        checksum = "0" + checksum
+    }
+    if (checksum != expectedChecksum) {
+        file.delete()
+        throw new GradleException("Wrong checksum for " + remoteUrl + ": expected: " + expectedChecksum + ", actual: " + checksum)
+    }
+}
+
+clean {
+    doLast {
+        def tree = fileTree(new File(projectDir, 'src/main/cpp'))
+        tree.include 'bootstrap-*.zip'
+        tree.each { it.delete() }
+    }
+}
+
+task downloadBootstraps() {
+    // ZeroTermux modify{@
+    /*doLast {
+        def packageVariant = project.ext.packageVariant
+        if (packageVariant == "apt-android-7") {
+            def version = "2022.04.28-r5" + "+" + packageVariant
+            downloadBootstrap("aarch64", "4a51a7eb209fe82efc24d52e3cccc13165f27377290687cb82038cbd8e948430", version)
+            downloadBootstrap("arm", "6459a786acbae50d4c8a36fa1c3de6a4dd2d482572f6d54f73274709bd627325", version)
+            downloadBootstrap("i686", "919d212b2f19e08600938db4079e794e947365022dbfd50ac342c50fcedcd7be", version)
+            downloadBootstrap("x86_64", "61b02fdc03ea4f5d9da8d8cf018013fdc6659e6da6cbf44e9b24d1c623580b89", version)
+        } else if (packageVariant == "apt-android-5") {
+            def version = "2022.04.28-r6" + "+" + packageVariant
+            downloadBootstrap("aarch64", "913609d439415c828c5640be1b0561467e539cb1c7080662decaaca2fb4820e7", version)
+            downloadBootstrap("arm", "26bfb45304c946170db69108e5eb6e3641aad751406ce106c80df80cad2eccf8", version)
+            downloadBootstrap("i686", "46dcfeb5eef67ba765498db9fe4c50dc4690805139aa0dd141a9d8ee0693cd27", version)
+            downloadBootstrap("x86_64", "615b590679ee6cd885b7fd2ff9473c845e920f9b422f790bb158c63fe42b8481", version)
+        } else {
+            throw new GradleException("Unsupported TERMUX_PACKAGE_VARIANT \"" + packageVariant + "\"")
+        }
+    }*/
+    doLast {
+        def version = "2026.08.02-r1+apt.android-7"
+        def bootstrapChecksums = [
+            "aarch64": "90a352db1c79aa5b6773003553d52c71da68cbe3eca2d277d0c5683d5163e658",
+            "arm": "f6bc4a8583166bcb38e0e74d42d6e56fd2f7401a039aa7344f0cd03701dea0bd",
+            "i686": "f571d8899253ee6893d349921dcef98a618c50dc0a6b503ca5994c88a23b7f44",
+            "x86_64": "c2d9892ff6284ada4943c0234296008098d70a73df3a419987ddd03e58af0424"
+        ]
+        def requestedArch = System.getProperty("arch", "arm64")
+        if (requestedArch != "arm64") {
+            throw new GradleException("Standalone Paseo supports only -Darch=arm64")
+        }
+        def selectedBootstrapArchitectures = ["aarch64"]
+        selectedBootstrapArchitectures.each { bootstrapArch ->
+            downloadBootstrap(bootstrapArch, bootstrapChecksums[bootstrapArch], version)
+        }
+    }
+    // @}
+}
+
+afterEvaluate {
+    android.applicationVariants.all { variant ->
+        variant.javaCompileProvider.get().dependsOn(downloadBootstraps)
+    }
+}

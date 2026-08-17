@@ -66,16 +66,25 @@ npm install -g @getpaseo/cli@0.3.1
 
 ## Android 客户端
 
-预构建 APK 位于
-`android/releases/PaseoEnhanced-v2.2.3.apk`。它连接手机本机的
-`http://127.0.0.1:6767/`，适合 Paseo Daemon 同样运行在该手机 Termux 中的场景。
+独立 arm64 APK 位于
+`android/releases/PaseoEnhanced-v2.3.0-arm64.apk`。它已经内置 Termux
+bootstrap、Node.js 24、Paseo CLI 0.3.1、Paseo Enhanced 2.3.0 和 Android arm64
+原生模块，不需要另外安装 ZeroTermux 或 Termux。首次启动会在应用私有目录离线
+安装这些运行文件，启动 Paseo Daemon，等待 `http://127.0.0.1:6767/` 就绪后直接
+打开 Web UI。最低系统版本为 Android 7.0（API 24）。
 
-客户端源码在 `android/src/main/java/`。仓库不包含签名密钥；发布 APK 使用者应
-自行签名，不能复用他人的密钥。
+APK SHA-256：
+`1C28D14C64627D1EF7356421273006963AAFD91706627CC8035463C1B1EBC426`
+
+Android 工程位于 `ZeroTermux-main/`，离线运行时准备脚本位于
+`scripts/prepare-android-runtime.ps1`。应用必须继续使用包名 `com.termux`，因此
+不能与其他使用相同包名但签名不同的 Termux/ZeroTermux 安装共存。
 
 ## 安全说明
 
 - 管理 API 只接受回环地址请求。
+- Android WebView 只允许 `127.0.0.1:6767`，其他导航和明文 HTTP 地址会被阻止。
+- Android 应用备份已关闭，release 签名信息只从构建进程的环境变量读取。
 - API Key 保存在用户本机的 `~/.paseo/codex-provider-profiles.json`，不会由
   管理接口返回明文。
 - 请勿公开 `.paseo` 目录、Daemon 密钥、会话记录或 Android 签名文件。

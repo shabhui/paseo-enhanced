@@ -1,0 +1,9 @@
+*           text=auto
+*.bat       text eol=crlf
+*.gradle    text eol=lf
+*.mk        text eol=lf
+*.sh        text eol=lf
+
+app/src/main/assets/x11/termux-x11               text eol=lf
+app/src/main/assets/x11/termux-x11-preference     text eol=lf
+app/src/main/assets/x11/termux-x11-preference-zt  text eol=lf
