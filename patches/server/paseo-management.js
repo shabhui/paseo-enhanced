@@ -688,6 +688,22 @@ async function importAllConversations(runtime) {
     return { total: entries.length, imported, failed };
 }
 
+async function importOneConversation(runtime, body) {
+    const provider = requireString(body.providerId ?? body.provider, "Provider id", 100);
+    const providerHandleId = requireString(body.providerHandleId ?? body.sessionId, "Provider session id", 300);
+    const cwd = requireString(body.cwd, "Conversation cwd", 8192);
+    const result = await importProviderSession({
+        request: { provider, providerHandleId, cwd },
+        workspaceProvisioning: runtime.workspaceProvisioning,
+        agentManager: runtime.agentManager,
+        agentStorage: runtime.agentStorage,
+        logger: runtime.logger,
+    });
+    await runtime.agentManager.closeAgent(result.snapshot.id).catch(() => undefined);
+    await runtime.agentManager.flush();
+    return { imported: { id: result.snapshot.id, provider, providerHandleId } };
+}
+
 async function deleteConversation(runtime, body) {
     const id = requireString(body.id, "Conversation id", 200);
     const record = await runtime.agentStorage.get(id);
@@ -773,6 +789,8 @@ async function handlePost(runtime, body) {
     const action = requireString(input.action, "Action", 80);
     if (action === "conversation-import-all")
         return await importAllConversations(requireRuntime(runtime));
+    if (action === "conversation-import")
+        return await importOneConversation(requireRuntime(runtime), input);
     if (action === "conversation-delete")
         return await deleteConversation(requireRuntime(runtime), input);
     if (action === "workspace-add")

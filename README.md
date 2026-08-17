@@ -86,8 +86,12 @@ npm install -g @getpaseo/cli@0.3.1
 本项目采用版本锁定补丁，不能假设未来 Paseo 文件结构不变。升级官方 Paseo 前，
 先运行 `npm run check`；若版本变化，应重新基于对应 npm 包审查差异，而不是强制覆盖。
 
-## License
+## 第三方声明与 License
 
-本项目基于 Paseo 修改并按 GNU AGPL v3 发布，详见 [LICENSE](LICENSE) 和
-[NOTICE.md](NOTICE.md)。
+本项目基于 Paseo 修改并按 GNU AGPL v3 发布。使用、修改或再分发时，请保留
+[LICENSE](LICENSE)、[NOTICE.md](NOTICE.md) 和
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)，并提供对应源代码。
 
+这里的“增强版”是非官方发行版，不代表 Paseo 官方背书。上游 Paseo 以及本仓库
+使用的其他组件、SDK 和 npm 依赖，仍受各自原始许可证约束；不要删除其版权和
+许可声明。

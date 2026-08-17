@@ -9,3 +9,6 @@ installable without rebuilding the complete upstream monorepo.
 
 This project is not affiliated with or endorsed by the Paseo maintainers.
 
+See `THIRD_PARTY_NOTICES.md` for the component-by-component attribution and
+license summary. The Paseo name and logo remain trademarks or project marks of
+their respective owners; this repository does not grant trademark rights.
