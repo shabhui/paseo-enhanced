@@ -1,7 +1,10 @@
 package com.termux.paseo;
 
 import android.app.Activity;
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
 import android.graphics.Insets;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
@@ -13,6 +16,7 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.ValueCallback;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
@@ -24,6 +28,7 @@ import com.termux.app.TermuxActivity;
 
 public final class PaseoActivity extends Activity implements PaseoRuntimeController.Listener {
     private static final String HOME_URL = "http://127.0.0.1:6767/";
+    private static final int FILE_CHOOSER_REQUEST = 6767;
 
     private PaseoRuntimeController runtimeController;
     private FrameLayout root;
@@ -32,6 +37,7 @@ public final class PaseoActivity extends Activity implements PaseoRuntimeControl
     private ProgressBar progress;
     private TextView status;
     private WebView webView;
+    private ValueCallback<Uri[]> fileChooserCallback;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,7 +69,7 @@ public final class PaseoActivity extends Activity implements PaseoRuntimeControl
     }
 
     private void configureWebView() {
-        webView.setWebChromeClient(new WebChromeClient());
+        webView.setWebChromeClient(new PaseoWebChromeClient());
         webView.setWebViewClient(new PaseoWebViewClient());
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -97,6 +103,15 @@ public final class PaseoActivity extends Activity implements PaseoRuntimeControl
     }
 
     @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != FILE_CHOOSER_REQUEST || fileChooserCallback == null) return;
+        ValueCallback<Uri[]> callback = fileChooserCallback;
+        fileChooserCallback = null;
+        callback.onReceiveValue(PaseoFileChooser.parseResult(resultCode, data));
+    }
+
+    @Override
     public void onState(PaseoRuntimeState state) {
         runOnUiThread(() -> {
             status.setText(state.message());
@@ -127,6 +142,10 @@ public final class PaseoActivity extends Activity implements PaseoRuntimeControl
     @Override
     protected void onDestroy() {
         if (runtimeController != null) runtimeController.stop();
+        if (fileChooserCallback != null) {
+            fileChooserCallback.onReceiveValue(null);
+            fileChooserCallback = null;
+        }
         if (webView != null) {
             webView.loadUrl("about:blank");
             webView.stopLoading();
@@ -136,6 +155,29 @@ public final class PaseoActivity extends Activity implements PaseoRuntimeControl
             webView = null;
         }
         super.onDestroy();
+    }
+
+    private final class PaseoWebChromeClient extends WebChromeClient {
+        @Override
+        public boolean onShowFileChooser(
+            WebView view,
+            ValueCallback<Uri[]> callback,
+            FileChooserParams params) {
+            if (fileChooserCallback != null) fileChooserCallback.onReceiveValue(null);
+            fileChooserCallback = callback;
+            Intent chooser = PaseoFileChooser.createIntent(
+                params == null ? null : params.getAcceptTypes(),
+                params == null ? FileChooserParams.MODE_OPEN : params.getMode());
+            try {
+                startActivityForResult(Intent.createChooser(chooser, "Choose image or attachment"),
+                    FILE_CHOOSER_REQUEST);
+                return true;
+            } catch (ActivityNotFoundException error) {
+                fileChooserCallback = null;
+                callback.onReceiveValue(null);
+                return false;
+            }
+        }
     }
 
     private static final class PaseoWebViewClient extends WebViewClient {

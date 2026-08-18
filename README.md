@@ -68,7 +68,7 @@ npm install -g @getpaseo/cli@0.3.1
 
 独立 arm64 APK 作为 `v2.3.2` GitHub Release 附件发布；本地构建产物位于
 `android/releases/PaseoEnhanced-v2.3.2-arm64.apk`，不纳入 Git 跟踪。它已经内置 Termux
-bootstrap、Node.js 24、Paseo CLI 0.3.1、Paseo Enhanced 2.3.1 和 Android arm64
+bootstrap、Node.js 24、Paseo CLI 0.3.1、Paseo Enhanced 2.3.3 和 Android arm64
 原生模块，不需要另外安装 ZeroTermux 或 Termux。首次启动会在应用私有目录离线
 安装这些运行文件，启动 Paseo Daemon，等待 `http://127.0.0.1:6767/` 就绪后直接
 打开 Web UI。`v2.3.2` 修复了 Windows 构建生成 CRLF runtime manifest 时首次安装误报

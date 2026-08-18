@@ -31,6 +31,16 @@ $packages = @(
         Sha256 = '7681fc23e822d7988ba8b2adf3468f93ae68f724dda365cff1385096a9fa87e6'
     },
     @{
+        Name = 'ca-certificates_2026.07.16_all.deb'
+        Path = 'pool/main/c/ca-certificates/ca-certificates_1:2026.07.16_all.deb'
+        Sha256 = '93dc49a8009012c29510081b8f07f30c57af9b10b1dae4f541231d8ee785b37a'
+    },
+    @{
+        Name = 'libc++_29_aarch64.deb'
+        Path = 'pool/main/libc/libc++/libc++_29_aarch64.deb'
+        Sha256 = 'bb9f12113c137aa0e8513bb51cc49fe77a5ce3ca39ab9e92c57d228ecdf00222'
+    },
+    @{
         Name = 'libicu_78.3_aarch64.deb'
         Path = 'pool/main/libi/libicu/libicu_78.3_aarch64.deb'
         Sha256 = 'f536403f65a08fe0df6e7304184e902d54def77d5c3bd5edfd9109d57601d276'
@@ -39,6 +49,16 @@ $packages = @(
         Name = 'libsqlite_3.53.4_aarch64.deb'
         Path = 'pool/main/libs/libsqlite/libsqlite_3.53.4_aarch64.deb'
         Sha256 = '0e909ce0d50fe123305446cd22e0c5edf535d40344b9b065fbdcdee52f53198d'
+    },
+    @{
+        Name = 'zlib_1.3.2_aarch64.deb'
+        Path = 'pool/main/z/zlib/zlib_1.3.2_aarch64.deb'
+        Sha256 = '75e7d0af17fcc3b40004309fdc00a1ddb9ae08346dce5e269902c34ac3966ac9'
+    },
+    @{
+        Name = 'openssl_3.6.3_aarch64.deb'
+        Path = 'pool/main/o/openssl/openssl_1:3.6.3_aarch64.deb'
+        Sha256 = '86760e9ce736f463236f2c15b1eb3a3fdcfc5778d0fd7077a917448dcc90f3aa'
     },
     @{
         Name = 'nodejs-lts_24.18.0-1_aarch64.deb'
@@ -135,11 +155,48 @@ function Assert-RuntimePayload {
         throw "Unable to inspect $termuxArchiveName"
     }
     $normalizedTermuxEntries = $termuxEntries | ForEach-Object { $_ -replace '^\./', '' }
-    if ($normalizedTermuxEntries -notcontains 'bin/node') {
-        throw 'Bundled Termux Node.js executable is missing'
+    $requiredTermuxEntries = @(
+        'bin/node',
+        'lib/libcares.so',
+        'lib/libc++_shared.so',
+        'lib/libcrypto.so.3',
+        'lib/libssl.so.3',
+        'lib/libz.so.1'
+    )
+    foreach ($requiredEntry in $requiredTermuxEntries) {
+        if ($normalizedTermuxEntries -notcontains $requiredEntry) {
+            throw "Bundled Termux runtime entry is missing: $requiredEntry"
+        }
     }
-    if ($normalizedTermuxEntries -notcontains 'lib/libcares.so') {
-        throw 'Bundled Termux c-ares library is missing'
+    $forbiddenTermuxPrefixes = @(
+        'include/',
+        'share/doc/',
+        'share/man/',
+        'lib/cmake/',
+        'lib/pkgconfig/',
+        'lib/icu/',
+        'share/icu/'
+    )
+    $forbiddenTermuxEntries = @(
+        'lib/libicuio.so',
+        'lib/libicuio.so.78',
+        'lib/libicuio.so.78.3',
+        'lib/libicutest.so',
+        'lib/libicutest.so.78',
+        'lib/libicutest.so.78.3',
+        'lib/libicutu.so',
+        'lib/libicutu.so.78',
+        'lib/libicutu.so.78.3',
+        'lib/libsqlite3.53.4.so',
+        'lib/pkgIndex.tcl'
+    )
+    $nonRuntimeTermuxEntries = $normalizedTermuxEntries | Where-Object {
+        $entry = $_
+        ($forbiddenTermuxPrefixes | Where-Object { $entry.StartsWith($_) }) -or
+            $forbiddenTermuxEntries -contains $entry
+    }
+    if ($nonRuntimeTermuxEntries) {
+        throw "Non-runtime Termux payload is bundled: $($nonRuntimeTermuxEntries[0])"
     }
 
     $validationRoot = Join-Path ([System.IO.Path]::GetTempPath()) "paseo-runtime-validation-$PID-$([guid]::NewGuid().ToString('N'))"
@@ -176,6 +233,10 @@ function Assert-RuntimePayload {
     }
     if ($paseoEntries -notcontains 'node_modules/@parcel/watcher-android-arm64/watcher.node') {
         throw 'Bundled Android file watcher is missing'
+    }
+    $sourceMaps = $paseoEntries | Where-Object { $_ -match '\.map$' }
+    if ($sourceMaps) {
+        throw "Source map is bundled in Paseo runtime: $($sourceMaps[0])"
     }
 
     $forbidden = $paseoEntries | Where-Object {
@@ -287,6 +348,10 @@ try {
         throw 'Android node-pty module contains incompatible GNU runtime dependencies'
     }
 
+    $nodeModules = Join-Path $temporary 'node_modules'
+    Get-ChildItem -LiteralPath $nodeModules -Recurse -File -Filter '*.map' |
+        Remove-Item -Force
+
     New-Item -ItemType Directory -Force -Path $assets | Out-Null
     if (Test-Path -LiteralPath $paseoArchive) {
         Remove-Item -LiteralPath $paseoArchive -Force
@@ -305,6 +370,42 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "Unable to stage $($package.Name)" }
     }
 
+    $runtimeDirectoriesToPrune = @(
+        'include',
+        'share\doc',
+        'share\man',
+        'lib\cmake',
+        'lib\pkgconfig',
+        'lib\icu',
+        'share\icu'
+    )
+    foreach ($relativeDirectory in $runtimeDirectoriesToPrune) {
+        $directoryToPrune = Join-Path $termuxStage $relativeDirectory
+        if (Test-Path -LiteralPath $directoryToPrune) {
+            Remove-Item -LiteralPath $directoryToPrune -Recurse -Force
+        }
+    }
+
+    $runtimeFilesToPrune = @(
+        'lib\libicuio.so',
+        'lib\libicuio.so.78',
+        'lib\libicuio.so.78.3',
+        'lib\libicutest.so',
+        'lib\libicutest.so.78',
+        'lib\libicutest.so.78.3',
+        'lib\libicutu.so',
+        'lib\libicutu.so.78',
+        'lib\libicutu.so.78.3',
+        'lib\libsqlite3.53.4.so',
+        'lib\pkgIndex.tcl'
+    )
+    foreach ($relativeFile in $runtimeFilesToPrune) {
+        $fileToPrune = Join-Path $termuxStage $relativeFile
+        if (Test-Path -LiteralPath $fileToPrune) {
+            Remove-Item -LiteralPath $fileToPrune -Force
+        }
+    }
+
     $relocationCount = 0
     foreach ($file in Get-ChildItem -LiteralPath $termuxStage -Recurse -File) {
         if (($file.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { continue }
@@ -318,7 +419,7 @@ try {
     if (Test-Path -LiteralPath $termuxArchive) {
         Remove-Item -LiteralPath $termuxArchive -Force
     }
-    & tar.exe -czf $termuxArchive -C $termuxStage .
+    & tar.exe --format=ustar -czf $termuxArchive -C $termuxStage .
     if ($LASTEXITCODE -ne 0) { throw 'Unable to create the Termux Node runtime archive' }
 } finally {
     if (Test-Path -LiteralPath $temporary) {

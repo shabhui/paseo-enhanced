@@ -33,9 +33,13 @@ function npmGlobalRoot() {
 
 function findServerRoot(explicit) {
   const globalRoot = npmGlobalRoot();
+  const executablePrefix = path.resolve(path.dirname(process.execPath), "..");
   const candidates = [
     explicit,
     process.env.PASEO_SERVER_ROOT,
+    process.env.PREFIX && path.join(process.env.PREFIX, "lib", "node_modules", "@getpaseo", "server"),
+    path.join(executablePrefix, "lib", "node_modules", "@getpaseo", "server"),
+    globalRoot && path.join(globalRoot, "@getpaseo", "server"),
     globalRoot && path.join(globalRoot, "@getpaseo", "cli", "node_modules", "@getpaseo", "server"),
     path.join(homedir(), ".npm-global", "lib", "node_modules", "@getpaseo", "cli", "node_modules", "@getpaseo", "server"),
   ].filter(Boolean);
@@ -88,13 +92,18 @@ const serverFiles = [
   ["session.js", "session.js"],
   ["codex-config.js", "codex-config.js"],
   ["codex-chat-proxy.js", "codex-chat-proxy.js"],
+  ["paseo-provider-config.js", "paseo-provider-config.js"],
   ["paseo-management.js", "paseo-management.js"],
   ["agent-providers-codex-app-server-agent.js", path.join("agent", "providers", "codex-app-server-agent.js")],
 ];
 
-for (const [sourceName] of serverFiles) {
-  execFileSync(process.execPath, ["--check", path.join(projectRoot, "patches", "server", sourceName)], { stdio: "inherit" });
+function validateServerPatchSyntax(files) {
+  if (process.platform === "android") return;
+  for (const [sourceName] of files) {
+    execFileSync(process.execPath, ["--check", path.join(projectRoot, "patches", "server", sourceName)], { stdio: "inherit" });
+  }
 }
+validateServerPatchSyntax(serverFiles);
 
 const serverCodeRoot = path.join(serverRoot, "dist", "server", "server");
 for (const [sourceName, relativeTarget] of serverFiles) {

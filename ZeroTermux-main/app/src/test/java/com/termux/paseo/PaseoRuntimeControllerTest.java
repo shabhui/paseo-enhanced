@@ -1,55 +1,26 @@
 package com.termux.paseo;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
-import android.app.Activity;
-import android.content.ComponentName;
-import android.content.Intent;
-import android.content.ServiceConnection;
+import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.robolectric.RobolectricTestRunner;
 
-@RunWith(RobolectricTestRunner.class)
 public class PaseoRuntimeControllerTest {
 
     @Test
-    public void retryUnbindsBeforeBindingAgain() {
-        RecordingActivity activity = new RecordingActivity();
-        PaseoRuntimeController controller = new PaseoRuntimeController();
+    public void controllerLaunchesTheAppOwnedRuntimeWithoutATerminalService() throws Exception {
+        String source = new String(Files.readAllBytes(new File(
+            "src/main/java/com/termux/paseo/PaseoRuntimeController.java").toPath()),
+            StandardCharsets.UTF_8);
 
-        controller.start(activity, state -> { });
-        controller.retry();
-
-        assertEquals(2, activity.bindCalls);
-        assertEquals(1, activity.unbindCalls);
-        controller.stop();
-    }
-
-    private static final class RecordingActivity extends Activity {
-        int bindCalls;
-        int unbindCalls;
-
-        @Override
-        public String getPackageName() {
-            return "com.termux";
-        }
-
-        @Override
-        public ComponentName startService(Intent service) {
-            return service.getComponent();
-        }
-
-        @Override
-        public boolean bindService(Intent service, ServiceConnection connection, int flags) {
-            bindCalls++;
-            return true;
-        }
-
-        @Override
-        public void unbindService(ServiceConnection connection) {
-            unbindCalls++;
-        }
+        assertTrue(source.contains("new ProcessBuilder"));
+        assertTrue(source.contains("PaseoProcessEnvironment.apply"));
+        assertFalse(source.contains("TermuxService"));
+        assertFalse(source.contains("bindService"));
+        assertFalse(source.contains("createTermuxTask"));
     }
 }

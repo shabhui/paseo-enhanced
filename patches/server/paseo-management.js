@@ -4,6 +4,14 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { closeAgentCommand } from "./agent/lifecycle-command.js";
 import { importProviderSession, listImportableProviderSessions } from "./agent/import-sessions.js";
+import { ProviderOverrideSchema } from "./agent/provider-launch-config.js";
+import { loadPersistedConfig, savePersistedConfig } from "./persisted-config.js";
+import {
+    applyProviderOverridesToRuntime,
+    assertProviderId,
+    mergeProviderOverrides,
+    providerViewFromSnapshot,
+} from "./paseo-provider-config.js";
 
 const LOOPBACK_ADDRESSES = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
 const SAFE_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/u;
@@ -717,11 +725,57 @@ async function deleteConversation(runtime, body) {
     return { deleted: id };
 }
 
-function listAgentProviders(runtime) {
-    return runtime.providerSnapshotManager.listRegisteredProviderIds().map((id) => ({
-        id,
-        label: runtime.providerSnapshotManager.getProviderLabel(id),
+function readProviderOverrides(runtime) {
+    const persisted = loadPersistedConfig(runtime.paseoHome, runtime.logger);
+    const providers = persisted.agents?.providers;
+    return providers && typeof providers === "object" && !Array.isArray(providers) ? providers : {};
+}
+
+function writeProviderOverrides(runtime, persisted, providers) {
+    const next = { ...persisted };
+    const agents = { ...(persisted.agents ?? {}) };
+    if (Object.keys(providers).length > 0) agents.providers = providers;
+    else delete agents.providers;
+    if (Object.keys(agents).length > 0) next.agents = agents;
+    else delete next.agents;
+    savePersistedConfig(runtime.paseoHome, next, runtime.logger);
+}
+
+async function listAgentProviders(runtime) {
+    const overrides = readProviderOverrides(runtime);
+    const entries = await runtime.providerSnapshotManager.listProviders({ wait: true });
+    return entries.map((entry) => ({
+        ...providerViewFromSnapshot(entry, overrides[entry.provider] ?? {}),
+        status: entry.status,
     }));
+}
+
+async function saveAgentProvider(runtime, body) {
+    const providerId = assertProviderId(requireString(body.providerId, "Provider id", 100));
+    if (!runtime.providerSnapshotManager.hasProvider(providerId)) {
+        throw new Error("Provider is not registered");
+    }
+    const changes = {};
+    for (const field of ["enabled", "command", "env", "additionalModels"]) {
+        if (Object.prototype.hasOwnProperty.call(body, field)) changes[field] = body[field];
+    }
+    const persisted = loadPersistedConfig(runtime.paseoHome, runtime.logger);
+    const current = persisted.agents?.providers ?? {};
+    const providers = mergeProviderOverrides(current, providerId, changes);
+    if (providers[providerId]) providers[providerId] = ProviderOverrideSchema.parse(providers[providerId]);
+    writeProviderOverrides(runtime, persisted, providers);
+    applyProviderOverridesToRuntime(runtime, providers);
+    await runtime.providerSnapshotManager.refreshSettingsSnapshot({ providers: [providerId] });
+    return { providers: await listAgentProviders(runtime), savedProviderId: providerId };
+}
+
+async function refreshAgentProvider(runtime, body) {
+    const providerId = assertProviderId(requireString(body.providerId, "Provider id", 100));
+    if (!runtime.providerSnapshotManager.hasProvider(providerId)) {
+        throw new Error("Provider is not registered");
+    }
+    await runtime.providerSnapshotManager.refreshSettingsSnapshot({ providers: [providerId] });
+    return { providers: await listAgentProviders(runtime), refreshedProviderId: providerId };
 }
 
 async function listWorkspaces(runtime) {
@@ -763,10 +817,10 @@ async function handleGet(runtime, query) {
     if (action === "overview") {
         const activeRuntime = requireRuntime(runtime);
         const [conversations, workspaces] = await Promise.all([listConversations(activeRuntime), listWorkspaces(activeRuntime)]);
-        return { providers: listAgentProviders(activeRuntime), conversationCount: conversations.length, workspaceCount: workspaces.length };
+        return { providers: await listAgentProviders(activeRuntime), conversationCount: conversations.length, workspaceCount: workspaces.length };
     }
     if (action === "providers")
-        return { providers: listAgentProviders(requireRuntime(runtime)) };
+        return { providers: await listAgentProviders(requireRuntime(runtime)) };
     if (action === "conversations")
         return { conversations: await listConversations(requireRuntime(runtime)) };
     if (action === "importable") {
@@ -793,6 +847,10 @@ async function handlePost(runtime, body) {
         return await importOneConversation(requireRuntime(runtime), input);
     if (action === "conversation-delete")
         return await deleteConversation(requireRuntime(runtime), input);
+    if (action === "provider-save")
+        return await saveAgentProvider(requireRuntime(runtime), input);
+    if (action === "provider-refresh")
+        return await refreshAgentProvider(requireRuntime(runtime), input);
     if (action === "workspace-add")
         return await addWorkspace(requireRuntime(runtime), input);
     if (action === "skill-import")

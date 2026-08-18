@@ -68,7 +68,7 @@ public class PaseoBuildScriptTest {
         assertTrue(buildScript.contains("RELEASE_KEY_ALIAS"));
         assertTrue(buildScript.contains("RELEASE_STORE_PASSWORD"));
         assertTrue(buildScript.contains("RELEASE_KEY_PASSWORD"));
-        assertTrue(buildScript.contains("versionName \"2.3.2\""));
+        assertTrue(buildScript.contains("versionName \"2.3.3\""));
         assertTrue(buildScript.contains("releaseArtifactRequested"));
         assertTrue(buildScript.contains("Release builds require configured signing credentials"));
         assertFalse(buildScript.matches(
@@ -87,6 +87,6 @@ public class PaseoBuildScriptTest {
         String buildScript = new String(
             Files.readAllBytes(buildFile.toPath()), StandardCharsets.UTF_8);
 
-        assertTrue(buildScript.contains("versionCode 119"));
+        assertTrue(buildScript.contains("versionCode 120"));
     }
 }

@@ -1,18 +1,9 @@
 package com.termux.paseo;
 
 import android.app.Activity;
-import android.content.ComponentName;
-import android.content.Context;
-import android.content.Intent;
-import android.content.ServiceConnection;
 import android.content.res.AssetManager;
 import android.os.Handler;
-import android.os.IBinder;
 import android.os.Looper;
-
-import com.termux.app.TermuxInstaller;
-import com.termux.app.TermuxService;
-import com.termux.shared.termux.TermuxConstants;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -20,11 +11,12 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public final class PaseoRuntimeController implements ServiceConnection {
+public final class PaseoRuntimeController {
     public interface Listener {
         void onState(PaseoRuntimeState state);
     }
@@ -42,8 +34,8 @@ public final class PaseoRuntimeController implements ServiceConnection {
         RUNTIME_INSTALL_EXECUTOR, command -> handler.post(command));
     private Activity activity;
     private Listener listener;
-    private TermuxService service;
-    private boolean serviceBound;
+    private File homeDirectory;
+    private Process startupProcess;
     private boolean finished;
     private long runGeneration;
     private String currentRunId;
@@ -67,18 +59,9 @@ public final class PaseoRuntimeController implements ServiceConnection {
         this.finished = false;
         this.runGeneration++;
         this.currentRunId = null;
-        dispatch(new PaseoRuntimeState(PaseoRuntimeState.Phase.INSTALLING, "Preparing the embedded terminal"));
-
-        Intent intent = new Intent(activity, TermuxService.class);
-        try {
-            activity.startService(intent);
-            serviceBound = activity.bindService(intent, this, Context.BIND_AUTO_CREATE);
-            if (!serviceBound) {
-                dispatch(new PaseoRuntimeState(PaseoRuntimeState.Phase.ERROR, "Unable to bind the embedded terminal service"));
-            }
-        } catch (Exception error) {
-            dispatch(new PaseoRuntimeState(PaseoRuntimeState.Phase.ERROR, messageFor(error)));
-        }
+        this.homeDirectory = new File(activity.getFilesDir(), "paseo-home");
+        dispatch(new PaseoRuntimeState(PaseoRuntimeState.Phase.INSTALLING, "Preparing the embedded Paseo runtime"));
+        preparePaseoRuntime(runGeneration);
     }
 
     public void retry() {
@@ -94,48 +77,27 @@ public final class PaseoRuntimeController implements ServiceConnection {
         runGeneration++;
         currentRunId = null;
         handler.removeCallbacks(statusPoll);
-        if (serviceBound && activity != null) {
-            try {
-                activity.unbindService(this);
-            } catch (Exception ignored) {
-                // The activity may already be finishing.
-            }
+        if (startupProcess != null) {
+            startupProcess.destroy();
+            startupProcess = null;
         }
-        serviceBound = false;
-        service = null;
+        homeDirectory = null;
         activity = null;
         listener = null;
     }
 
-    @Override
-    public void onServiceConnected(ComponentName name, IBinder binder) {
-        service = TermuxService.fromBinder(binder);
-        if (service == null || activity == null) {
-            dispatch(new PaseoRuntimeState(PaseoRuntimeState.Phase.ERROR, "Embedded terminal service returned an invalid binder"));
-            return;
-        }
-        long generation = runGeneration;
-        TermuxInstaller.setupBootstrapIfNeeded(activity, () -> launchPaseoScript(generation));
-    }
-
-    @Override
-    public void onServiceDisconnected(ComponentName name) {
-        service = null;
-        runGeneration++;
-        currentRunId = null;
-        if (!finished) {
-            dispatch(new PaseoRuntimeState(PaseoRuntimeState.Phase.ERROR, "Embedded terminal service disconnected"));
-        }
-    }
-
-    private void launchPaseoScript(long generation) {
-        if (!isCurrentRun(generation) || activity == null || service == null) return;
+    private void preparePaseoRuntime(long generation) {
+        if (!isCurrentRun(generation) || activity == null || homeDirectory == null) return;
 
         AssetManager assets = activity.getApplicationContext().getAssets();
-        File runtimeDirectory = new File(TermuxConstants.TERMUX_HOME_DIR_PATH, ".paseo-app/runtime");
+        File runtimeDirectory = new File(homeDirectory, ".paseo-app/runtime");
         dispatch(new PaseoRuntimeState(PaseoRuntimeState.Phase.INSTALLING, "Installing the embedded Paseo runtime"));
         runtimePreparer.prepare(
-            () -> assetInstaller.install(assets, "paseo-runtime", runtimeDirectory),
+            () -> {
+                ensureDirectory(homeDirectory);
+                ensureDirectory(new File(activity.getFilesDir(), "usr/tmp"));
+                assetInstaller.install(assets, "paseo-runtime", runtimeDirectory);
+            },
             () -> startPaseoTask(generation, runtimeDirectory),
             error -> {
                 if (isCurrentRun(generation)) {
@@ -145,21 +107,20 @@ public final class PaseoRuntimeController implements ServiceConnection {
     }
 
     private void startPaseoTask(long generation, File runtimeDirectory) {
-        if (!isCurrentRun(generation) || service == null) return;
+        if (!isCurrentRun(generation) || activity == null || homeDirectory == null) return;
 
         try {
             File script = new File(runtimeDirectory, "start-paseo.sh");
             script.setExecutable(true, true);
             String runId = UUID.randomUUID().toString();
             currentRunId = runId;
-            if (service.createTermuxTask(
-                TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH + "/bash",
-                new String[]{script.getAbsolutePath(), runId}, null,
-                TermuxConstants.TERMUX_HOME_DIR_PATH) == null) {
-                currentRunId = null;
-                dispatch(new PaseoRuntimeState(PaseoRuntimeState.Phase.ERROR, "Unable to start the Paseo bootstrap script"));
-                return;
-            }
+            ProcessBuilder processBuilder = new ProcessBuilder(
+                "/system/bin/sh", script.getAbsolutePath(), runId);
+            processBuilder.directory(homeDirectory);
+            Map<String, String> environment = processBuilder.environment();
+            PaseoProcessEnvironment.apply(environment, activity.getFilesDir());
+            environment.remove("LD_PRELOAD");
+            startupProcess = processBuilder.start();
             handler.removeCallbacks(statusPoll);
             handler.post(statusPoll);
         } catch (Exception error) {
@@ -171,11 +132,13 @@ public final class PaseoRuntimeController implements ServiceConnection {
     private PaseoRuntimeState readState() {
         String expectedRunId = currentRunId;
         if (expectedRunId == null) {
-            return new PaseoRuntimeState(PaseoRuntimeState.Phase.INSTALLING, "Waiting for the embedded runtime");
+            return new PaseoRuntimeState(PaseoRuntimeState.Phase.INSTALLING, "Waiting for the embedded Paseo runtime");
         }
-        File statusFile = new File(
-            TermuxConstants.TERMUX_HOME_DIR_PATH,
-            ".paseo-app/status-" + expectedRunId);
+        File currentHome = homeDirectory;
+        if (currentHome == null) {
+            return new PaseoRuntimeState(PaseoRuntimeState.Phase.INSTALLING, "Waiting for the embedded Paseo runtime");
+        }
+        File statusFile = new File(currentHome, ".paseo-app/status-" + expectedRunId);
         if (!statusFile.isFile()) {
             return new PaseoRuntimeState(PaseoRuntimeState.Phase.INSTALLING, "Installing the embedded Paseo runtime");
         }
@@ -204,5 +167,12 @@ public final class PaseoRuntimeController implements ServiceConnection {
     private static String messageFor(Exception error) {
         String message = error.getMessage();
         return message == null || message.trim().isEmpty() ? error.getClass().getSimpleName() : message;
+    }
+
+    private static void ensureDirectory(File directory) throws IOException {
+        if (!directory.exists() && !directory.mkdirs()) {
+            throw new IOException("Unable to create " + directory);
+        }
+        if (!directory.isDirectory()) throw new IOException("Not a directory: " + directory);
     }
 }

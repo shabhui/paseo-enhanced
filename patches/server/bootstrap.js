@@ -573,6 +573,8 @@ export async function createPaseoDaemon(config, rootLogger, dependencies = {}) {
     paseoManagementRoutes.setRuntime({
         serverId,
         logger,
+        paseoHome: config.paseoHome,
+        daemonConfigStore,
         agentManager,
         agentStorage,
         providerSnapshotManager,
